@@ -68,8 +68,29 @@ test("production flight API failure does not fall back to fake prices", () => {
 
 test("browser flight service returns empty results instead of mock data after API failure", () => {
   const service = read("src/services/api/flights.ts");
-  assert.match(service, /catch\s*\{\s*return \[\];\s*\}/s);
+  assert.match(service, /source:\s*"error"/);
+  assert.match(service, /error:\s*"שגיאה בחיפוש טיסות\. נסו שוב בעוד רגע\."/);
   assert.equal(service.includes("Flight API failed, falling back to mock flights"), false);
+});
+
+test("trip flight search form always triggers an API search and loading state", () => {
+  const source = read("src/components/flights-section.tsx");
+
+  assert.match(source, /onSubmit=\{handleSearch\}/);
+  assert.match(source, /setIsLoading\(true\)/);
+  assert.match(source, /setSearchNonce\(\(value\) => value \+ 1\)/);
+  assert.match(source, /searchFlights\(\{/);
+  assert.equal(source.includes("window.setTimeout"), false);
+});
+
+test("trip flight search renders unavailable and failed request states", () => {
+  const component = read("src/components/flights-section.tsx");
+  const route = read("src/app/api/flights/search/route.ts");
+
+  assert.match(component, /statusMessage \|\| errorMessage \|\| "לא נמצאו טיסות"/);
+  assert.match(component, /errorMessage/);
+  assert.match(route, /warning:\s*"טיסות לא זמינות כרגע"/);
+  assert.match(route, /warning:\s*"לא נמצאו טיסות"/);
 });
 
 test("real search provider labels unavailable data instead of inventing prices", () => {

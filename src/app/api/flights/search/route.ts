@@ -6,7 +6,6 @@ import {
   getAmadeusCredentials,
   isMockMode,
   logMockMode,
-  validateProductionRuntimeEnv,
 } from "@/lib/env";
 import type { FlightDeal, FlightSearchInput } from "@/services/api/flights";
 import { generateMockFlights } from "@/lib/mock-flights";
@@ -263,8 +262,20 @@ function mockResponse(input: FlightSearchInput, warning?: string) {
 }
 
 export async function POST(request: Request) {
-  validateProductionRuntimeEnv();
-  const input = searchSchema.parse(await request.json());
+  const validation = searchSchema.safeParse(await request.json().catch(() => null));
+
+  if (!validation.success) {
+    return NextResponse.json(
+      {
+        flights: [],
+        source: "error",
+        warning: "בקשת חיפוש טיסות לא תקינה.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const input = validation.data;
 
   if (isMockMode()) {
     logMockMode("Flights API route returned mock data because mock mode is enabled.");
@@ -278,16 +289,16 @@ export async function POST(request: Request) {
       return NextResponse.json({
         flights: [],
         source: "unavailable",
-        warning: "Amadeus returned no verified flight offers.",
+        warning: "לא נמצאו טיסות",
       });
     }
 
     return NextResponse.json({ flights, source: "amadeus" });
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       flights: [],
       source: "unavailable",
-      warning: error instanceof Error ? error.message : "Flight API failed.",
+      warning: "טיסות לא זמינות כרגע",
     });
   }
 }

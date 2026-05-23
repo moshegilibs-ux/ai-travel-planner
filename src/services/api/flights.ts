@@ -19,10 +19,21 @@ export type {
   FlightTimeFilter,
 };
 
-export async function getFlights(input: FlightSearchInput) {
+export type FlightSearchResult = {
+  flights: FlightDeal[];
+  source: "amadeus" | "mock" | "fallback" | "unavailable" | "error";
+  warning?: string;
+  error?: string;
+};
+
+export async function searchFlights(input: FlightSearchInput): Promise<FlightSearchResult> {
   if (isPublicMockMode()) {
     logPublicMockMode("Flight search is using mock flights because NEXT_PUBLIC_USE_MOCK_DATA is not false.");
-    return generateMockFlights(input);
+    return {
+      flights: generateMockFlights(input),
+      source: "mock",
+      warning: "מצב פיתוח פעיל. מחירי הטיסות אינם נתוני ספק מאומתים.",
+    };
   }
 
   try {
@@ -32,18 +43,37 @@ export async function getFlights(input: FlightSearchInput) {
       body: JSON.stringify(input),
     });
 
-    if (!response.ok) {
-      throw new Error("Flight API route failed");
-    }
-
     const data = (await response.json()) as {
       flights?: FlightDeal[];
+      source?: FlightSearchResult["source"];
+      warning?: string;
+      error?: { message?: string };
     };
 
-    return data.flights ?? [];
+    if (!response.ok) {
+      return {
+        flights: [],
+        source: "error",
+        error: data.error?.message || "שגיאה בחיפוש טיסות.",
+      };
+    }
+
+    return {
+      flights: data.flights ?? [],
+      source: data.source ?? "unavailable",
+      warning: data.warning,
+    };
   } catch {
-    return [];
+    return {
+      flights: [],
+      source: "error",
+      error: "שגיאה בחיפוש טיסות. נסו שוב בעוד רגע.",
+    };
   }
+}
+
+export async function getFlights(input: FlightSearchInput) {
+  return (await searchFlights(input)).flights;
 }
 
 export function sortAndFilterFlights(

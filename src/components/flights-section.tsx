@@ -17,7 +17,7 @@ import {
   FlightFilters,
   formatFlightDuration,
   getFlightAirlines,
-  getFlights,
+  searchFlights,
   sortAndFilterFlights,
 } from "@/services/api/flights";
 
@@ -46,6 +46,10 @@ export function FlightsSection({
   const [searchedAdults, setSearchedAdults] = useState(2);
   const [isLoading, setIsLoading] = useState(false);
   const [flights, setFlights] = useState<FlightDeal[]>([]);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchNonce, setSearchNonce] = useState(0);
   const [expandedFlightId, setExpandedFlightId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FlightFilters>({
     sortBy: "cheapest",
@@ -59,15 +63,27 @@ export function FlightsSection({
     let isActive = true;
 
     setIsLoading(true);
-    getFlights({
+    setStatusMessage("");
+    setErrorMessage("");
+    searchFlights({
       origin: searchedOrigin,
       destination: searchedDestination,
       departureDate: searchedDepartureDate || undefined,
       returnDate: searchedReturnDate || undefined,
       adults: searchedAdults,
-    }).then((nextFlights) => {
+    }).then((result) => {
       if (!isActive) return;
-      setFlights(nextFlights);
+      setFlights(result.flights);
+      setStatusMessage(result.warning ?? "");
+      setErrorMessage(result.error ?? "");
+      setHasSearched(true);
+      setIsLoading(false);
+    }).catch(() => {
+      if (!isActive) return;
+      setFlights([]);
+      setStatusMessage("");
+      setErrorMessage("שגיאה בחיפוש טיסות. נסו שוב בעוד רגע.");
+      setHasSearched(true);
       setIsLoading(false);
     });
 
@@ -80,6 +96,7 @@ export function FlightsSection({
     searchedDepartureDate,
     searchedReturnDate,
     searchedAdults,
+    searchNonce,
   ]);
 
   const airlines = useMemo(() => getFlightAirlines(flights), [flights]);
@@ -90,13 +107,16 @@ export function FlightsSection({
 
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    window.setTimeout(() => {
-      setSearchedOrigin(origin.trim() || "TLV");
-      setSearchedDestination(destination.trim() || "ATH");
-      setSearchedDepartureDate(departureDate);
-      setSearchedReturnDate(returnDate);
-      setSearchedAdults(adults);
-    }, 450);
+    setIsLoading(true);
+    setStatusMessage("");
+    setErrorMessage("");
+    setFlights([]);
+    setSearchedOrigin(origin.trim() || "TLV");
+    setSearchedDestination(destination.trim() || "ATH");
+    setSearchedDepartureDate(departureDate);
+    setSearchedReturnDate(returnDate);
+    setSearchedAdults(adults);
+    setSearchNonce((value) => value + 1);
   }
 
   return (
@@ -185,6 +205,24 @@ export function FlightsSection({
           {isLoading ? "מחפש..." : "חפש טיסות"}
         </button>
       </form>
+
+      {isLoading ? (
+        <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-center font-bold text-sky-900">
+          מחפש טיסות...
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-center font-bold text-red-800">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {!isLoading && statusMessage ? (
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center font-bold text-amber-900">
+          {statusMessage}
+        </div>
+      ) : null}
 
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
         <p className="mb-3 flex items-center gap-2 font-black text-slate-950">
@@ -277,12 +315,11 @@ export function FlightsSection({
         </div>
       </div>
 
-      {visibleFlights.length === 0 ? (
+      {!isLoading && hasSearched && visibleFlights.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center font-bold text-slate-600">
-          לא נמצאו טיסות לפי הסינון הנוכחי. נסו להרחיב את מספר העצירות או לשנות
-          חברת תעופה.
+          {statusMessage || errorMessage || "לא נמצאו טיסות"}
         </div>
-      ) : (
+      ) : !isLoading && visibleFlights.length > 0 ? (
         <div className="mt-5 grid gap-4">
           {visibleFlights.map((flight, index) => (
             <motion.article
@@ -409,7 +446,7 @@ export function FlightsSection({
             </motion.article>
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
