@@ -1,0 +1,90 @@
+{
+  "flights": [
+    {
+      "id": "fl-001",
+      "airline": "SkyWays",
+      "from": "Tel Aviv",
+      "destination": "Paris",
+      "departureTime": "08:10",
+      "arrivalTime": "12:35",
+      "price": 219,
+      "duration": "4h 25m",
+      "nonstop": true
+    },
+    {
+      "id": "fl-002",
+      "airline": "Air Europa",
+      "from": "Tel Aviv",
+      "destination": "Rome",
+      "departureTime": "11:20",
+      "arrivalTime": "14:05",
+      "price": 149,
+      "duration": "3h 45m",
+      "nonstop": true
+    },
+    {
+      "id": "fl-003",
+      "airline": "Hopper Jet",
+      "from": "Tel Aviv",
+      "destination": "Barcelona",
+      "departureTime": "17:40",
+      "arrivalTime": "23:10",
+      "price": 188,
+      "duration": "5h 30m",
+      "nonstop": false
+    },
+    {
+      "id": "fl-004",
+      "airline": "Nordic Air",
+      "from": "Tel Aviv",
+      "destination": "Amsterdam",
+      "departureTime": "06:30",
+      "arrivalTime": "11:15",
+      "price": 241,
+      "duration": "4h 45m",
+      "nonstop": true
+    }
+  ],
+  "hotels": [
+    {
+      "id": "ht-001",
+      "name": "Maison Verde Boutique",
+      "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
+      "rating": 4.8,
+      "stars": 4,
+      "location": "City center",
+      "pricePerNight": 132,
+      "amenities": ["Breakfast", "Airport shuttle", "Spa"]
+    },
+    {
+      "id": "ht-002",
+      "name": "The Harbor Stay",
+      "image": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80",
+      "rating": 4.6,
+      "stars": 5,
+      "location": "Waterfront",
+      "pricePerNight": 184,
+      "amenities": ["Pool", "Gym", "Sea view"]
+    },
+    {
+      "id": "ht-003",
+      "name": "Urban Nest Suites",
+      "image": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80",
+      "rating": 4.4,
+      "stars": 3,
+      "location": "Old town",
+      "pricePerNight": 96,
+      "amenities": ["Kitchenette", "Family rooms", "Metro nearby"]
+    },
+    {
+      "id": "ht-004",
+      "name": "Luxe Garden Hotel",
+      "image": "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=80",
+      "rating": 4.9,
+      "stars": 5,
+      "location": "Museum district",
+      "pricePerNight": 226,
+      "amenities": ["Fine dining", "Concierge", "Wellness"]
+    }
+  ]
+}

@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  name            String?
+  email           String?          @unique
+  emailVerified   DateTime?
+  image           String?
+  accounts        Account[]
+  sessions        Session[]
+  savedTrips      SavedTrip[]
+  searchHistory   SearchHistory[]
+  favoriteHotels  FavoriteHotel[]
+  favoriteFlights FavoriteFlight[]
+  trackedFlights  TrackedFlight[]
+  subscriptions   Subscription[]
+  usageEvents     UsageEvent[]
+  affiliateEvents AffiliateEvent[]
+  notifications   Notification[]
+  referralsMade   Referral[]       @relation("ReferralInviter")
+  referralInvite  Referral?        @relation("ReferralInvitee")
+  publicTrips      PublicTrip[]
+  errorLogs        ErrorLog[]
+  userPreferences  UserPreference?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model SavedTrip {
+  id          String   @id @default(cuid())
+  userId      String
+  externalId  String?
+  title       String
+  destination String
+  totalPrice  Int?
+  payload     Json
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String?
+  query     Json
+  results   Int      @default(0)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FavoriteHotel {
+  id          String   @id @default(cuid())
+  userId      String
+  hotelId     String
+  name        String
+  destination String?
+  payload     Json
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, hotelId])
+}
+
+model FavoriteFlight {
+  id        String   @id @default(cuid())
+  userId    String
+  flightId  String
+  airline   String
+  origin    String
+  destination String
+  payload   Json
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, flightId])
+}
+
+model TrackedFlight {
+  id             String   @id @default(cuid())
+  userId         String
+  flightId       String
+  airline        String
+  origin         String
+  destination    String
+  targetPrice    Int?
+  lastSeenPrice  Int?
+  notificationStatus String @default("pending")
+  payload        Json
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String
+  plan                 Plan     @default(FREE)
+  status               String   @default("inactive")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?  @unique
+  currentPeriodEnd     DateTime?
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model UsageEvent {
+  id        String    @id @default(cuid())
+  userId    String?
+  type      UsageType
+  quantity  Int       @default(1)
+  metadata  Json?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type, createdAt])
+}
+
+model AffiliateEvent {
+  id           String            @id @default(cuid())
+  userId       String?
+  provider     AffiliateProvider
+  outboundUrl  String
+  source       String?
+  tripId       String?
+  commission   Int?
+  status       String            @default("clicked")
+  metadata     Json?
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@index([provider, createdAt])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  metadata  Json?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Referral {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  inviterId String
+  inviteeId String?  @unique
+  status    String   @default("pending")
+  inviter   User     @relation("ReferralInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee   User?    @relation("ReferralInvitee", fields: [inviteeId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+model PublicTrip {
+  id          String   @id @default(cuid())
+  userId      String
+  slug        String   @unique
+  title       String
+  destination String
+  payload     Json
+  published   Boolean  @default(false)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  level     String   @default("error")
+  message   String
+  source    String?
+  metadata  Json?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  memory    Json
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Plan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum UsageType {
+  AI_MESSAGE
+  SEARCH
+  PRICE_TRACK
+  PDF_EXPORT
+}
+
+enum AffiliateProvider {
+  BOOKING
+  EXPEDIA
+  SKYSCANNER
+  KIWI
+  AGODA
+}

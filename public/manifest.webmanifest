@@ -1,0 +1,16 @@
+{
+  "name": "TripPilot AI",
+  "short_name": "TripPilot",
+  "description": "AI travel marketplace for flights, hotels and itineraries.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
