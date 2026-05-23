@@ -64,6 +64,7 @@ export default async function SearchPage({
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
       <AppHeader />
       <SearchResultsView
+        destination={query.destination}
         flights={results.flights}
         hotels={results.hotels}
         deals={results.deals}

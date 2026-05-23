@@ -18,6 +18,24 @@ const cards = [
     title: "Flight API",
     message: "flights",
   },
+  {
+    key: "hotelsConfigured",
+    provider: "hotels",
+    title: "Hotel API",
+    message: "hotels",
+  },
+  {
+    key: "fxConfigured",
+    provider: "fx",
+    title: "Currency rates API",
+    message: "fx",
+  },
+  {
+    key: "weatherConfigured",
+    provider: "weather",
+    title: "Weather API",
+    message: "weather",
+  },
 ] as const;
 
 export function DeveloperSettings({ initialStatus }: { initialStatus: ApiStatus }) {

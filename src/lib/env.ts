@@ -15,6 +15,9 @@ const serverEnvSchema = z.object({
   GOOGLE_MAPS_API_KEY: optionalString,
   AMADEUS_CLIENT_ID: optionalString,
   AMADEUS_CLIENT_SECRET: optionalString,
+  HOTEL_API_KEY: optionalString,
+  FX_API_KEY: optionalString,
+  WEATHER_API_KEY: optionalString,
   AMADEUS_API_KEY: optionalString,
   AMADEUS_API_SECRET: optionalString,
   AMADEUS_BASE_URL: optionalString,
@@ -66,6 +69,9 @@ export function getServerEnv() {
     GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
     AMADEUS_CLIENT_ID: process.env.AMADEUS_CLIENT_ID,
     AMADEUS_CLIENT_SECRET: process.env.AMADEUS_CLIENT_SECRET,
+    HOTEL_API_KEY: process.env.HOTEL_API_KEY,
+    FX_API_KEY: process.env.FX_API_KEY,
+    WEATHER_API_KEY: process.env.WEATHER_API_KEY,
     AMADEUS_API_KEY: process.env.AMADEUS_API_KEY,
     AMADEUS_API_SECRET: process.env.AMADEUS_API_SECRET,
     AMADEUS_BASE_URL: process.env.AMADEUS_BASE_URL,
@@ -136,6 +142,19 @@ export function hasAmadeus() {
   );
 }
 
+export function hasHotelProvider() {
+  const env = getServerEnv();
+  return hasAmadeus() || Boolean(env.HOTEL_API_KEY);
+}
+
+export function hasFxProvider() {
+  return Boolean(getServerEnv().FX_API_KEY);
+}
+
+export function hasWeatherProvider() {
+  return Boolean(getServerEnv().WEATHER_API_KEY);
+}
+
 export function getAmadeusCredentials() {
   const env = getServerEnv();
 
@@ -155,6 +174,18 @@ export function getAdminAccessToken() {
 
 export function getGoogleMapsApiKey() {
   return getServerEnv().GOOGLE_MAPS_API_KEY || "";
+}
+
+export function getHotelApiKey() {
+  return getServerEnv().HOTEL_API_KEY || "";
+}
+
+export function getFxApiKey() {
+  return getServerEnv().FX_API_KEY || "";
+}
+
+export function getWeatherApiKey() {
+  return getServerEnv().WEATHER_API_KEY || "";
 }
 
 export function getOpenAIModel() {
@@ -263,6 +294,8 @@ export function validateProductionRuntimeEnv() {
     "GOOGLE_MAPS_API_KEY",
     "AMADEUS_CLIENT_ID",
     "AMADEUS_CLIENT_SECRET",
+    "FX_API_KEY",
+    "WEATHER_API_KEY",
   ]);
 }
 
@@ -276,6 +309,9 @@ export function getEnvironmentStatus() {
     hasGoogleAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     hasNextAuthSecret: Boolean(env.NEXTAUTH_SECRET),
     hasAmadeus: hasAmadeus(),
+    hasHotelProvider: hasHotelProvider(),
+    hasFxProvider: hasFxProvider(),
+    hasWeatherProvider: hasWeatherProvider(),
     hasOpenAI: hasOpenAI(),
     hasGoogleMaps: hasGoogleMaps(),
     hasAdminAccessToken: Boolean(env.ADMIN_ACCESS_TOKEN),

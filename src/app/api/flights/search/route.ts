@@ -275,14 +275,19 @@ export async function POST(request: Request) {
     const flights = await searchAmadeusFlights(input);
 
     if (!flights.length) {
-      return mockResponse(input, "Amadeus returned no flights.");
+      return NextResponse.json({
+        flights: [],
+        source: "unavailable",
+        warning: "Amadeus returned no verified flight offers.",
+      });
     }
 
     return NextResponse.json({ flights, source: "amadeus" });
   } catch (error) {
-    return mockResponse(
-      input,
-      error instanceof Error ? error.message : "Flight API failed.",
-    );
+    return NextResponse.json({
+      flights: [],
+      source: "unavailable",
+      warning: error instanceof Error ? error.message : "Flight API failed.",
+    });
   }
 }

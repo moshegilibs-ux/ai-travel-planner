@@ -1,10 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
-import { BudgetCalculator, AiRecommendations } from "@/components/travel-dashboard-widgets";
+import { AiRecommendations, BudgetCalculator } from "@/components/travel-dashboard-widgets";
 import { getTripById } from "@/lib/amadeus";
 import { Clock, Hotel, Plane, Star } from "lucide-react";
 import type { Metadata } from "next";
+
+function formatOfferPrice(value: number | null, currency: string) {
+  if (value === null) return "לא זמין כרגע";
+  return new Intl.NumberFormat("he-IL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 export async function generateMetadata({
   params,
@@ -20,7 +29,7 @@ export async function generateMetadata({
     openGraph: {
       title: trip.title,
       description: trip.aiSummary,
-      images: [trip.image],
+      images: trip.image ? [trip.image] : [],
     },
   };
 }
@@ -39,14 +48,18 @@ export default async function TripDetailsPage({
       <main className="mx-auto max-w-7xl px-5 py-8">
         <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm dark:bg-slate-900">
           <div className="relative h-80">
-            <Image
-              src={trip.image}
-              alt={trip.title}
-              fill
-              sizes="100vw"
-              className="object-cover"
-              priority
-            />
+            {trip.image ? (
+              <Image
+                src={trip.image}
+                alt={trip.title}
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="h-full bg-slate-200 dark:bg-slate-800" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
             <div className="absolute bottom-0 right-0 p-6 text-white">
               <p className="text-sm font-bold text-sky-200">פרטי טיול נגיש</p>
@@ -78,10 +91,13 @@ export default async function TripDetailsPage({
                   </p>
                 </span>
                 <span className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-                  <strong className="text-2xl">${Math.round(trip.flight.price)}</strong>
+                  <strong className="text-2xl">
+                    {formatOfferPrice(trip.flight.price, trip.flight.currency)}
+                  </strong>
                   <p className="mt-1 text-sm text-slate-500">
-                    {trip.flight.nonstop ? "ישירה" : "עצירה אחת"}
+                    {trip.flight.nonstop ? "ישירה" : "עם עצירות"}
                   </p>
+                  <p className="mt-1 text-xs text-slate-500">{trip.flight.priceLabel}</p>
                 </span>
               </div>
             </article>
@@ -98,21 +114,25 @@ export default async function TripDetailsPage({
                     {trip.hotel.rating} · {trip.hotel.stars} כוכבים
                   </p>
                 </div>
-                <p className="text-2xl font-black">${trip.hotel.pricePerNight}/לילה</p>
+                <p className="text-2xl font-black">
+                  {formatOfferPrice(trip.hotel.pricePerNight, trip.hotel.currency)}/לילה
+                </p>
               </div>
             </article>
 
             <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900">
               <h2 className="text-2xl font-black">מסלול AI רגוע</h2>
               <div className="mt-5 grid gap-3">
-                {["הגעה נינוחה ובדיקת אזור המלון", "אטרקציה מרכזית נגישה ואוכל מקומי", "יום גמיש לשופינג או מוזיאון עם מנוחה"].map(
-                  (item, index) => (
-                    <div key={item} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-                      <p className="font-bold">יום {index + 1}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item}</p>
-                    </div>
-                  ),
-                )}
+                {[
+                  "הגעה נינוחה ובדיקת אזור המלון",
+                  "אטרקציה מרכזית נגישה ואוכל מקומי",
+                  "יום גמיש לשופינג או מוזיאון עם מנוחה",
+                ].map((item, index) => (
+                  <div key={item} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
+                    <p className="font-bold">יום {index + 1}</p>
+                    <p className="mt-1 text-sm text-slate-500">{item}</p>
+                  </div>
+                ))}
               </div>
             </article>
           </div>

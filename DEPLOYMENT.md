@@ -321,3 +321,40 @@ Admin מוגן כרגע באמצעות `ADMIN_ACCESS_TOKEN`.
 - עברו ל־`NEXT_PUBLIC_USE_MOCK_DATA=false` רק אחרי שכל הספקים מוגדרים.
 - שמרו staging נפרד מפרודקשן כדי לבדוק מכסות API וחיובים.
 - מומלץ להפעיל monitoring לפני פתיחה לקהל אמיתי.
+## Real Provider Reliability Policy
+
+Production must not invent travel prices, availability, images or booking options.
+
+Required Vercel environment variables for verified provider data:
+
+```env
+AMADEUS_CLIENT_ID=
+AMADEUS_CLIENT_SECRET=
+HOTEL_API_KEY=
+FX_API_KEY=
+WEATHER_API_KEY=
+OPENAI_API_KEY=
+GOOGLE_MAPS_API_KEY=
+ADMIN_ACCESS_TOKEN=
+NEXT_PUBLIC_USE_MOCK_DATA=false
+```
+
+Runtime behavior:
+
+- Flights use Amadeus when credentials are configured.
+- Hotels use Amadeus Hotels now, with `HOTEL_API_KEY` reserved for Booking/Expedia affiliate integration.
+- Currency rates use `/api/fx` server-side only.
+- Weather uses `/api/weather` server-side only.
+- Provider keys are never sent to the client.
+- If a provider fails or returns no verified offers, the UI must show `לא זמין כרגע`.
+- Use `מחיר בזמן אמת` only for verified API data.
+- Use `הערכה בלבד` for food, activities, fees and safety margin.
+- Budget total must equal: `flight + hotel + food + activities + fees + safetyMargin`.
+
+Pre-deploy checks:
+
+```bash
+npm run lint
+npm test
+npm run build
+```

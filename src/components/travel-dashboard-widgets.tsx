@@ -2,11 +2,26 @@ import { Brain, Calculator, PlaneTakeoff, ShieldCheck } from "lucide-react";
 import type { TripDeal } from "@/types/travel-marketplace";
 
 export function BudgetCalculator({ trip }: { trip?: TripDeal }) {
-  const flight = trip ? Math.round(trip.flight.price * 2) : 438;
-  const hotel = trip ? trip.hotel.pricePerNight * 4 : 528;
-  const food = 260;
-  const activities = 220;
-  const total = flight + hotel + food + activities;
+  const breakdown = trip?.budgetBreakdown;
+  const currency = breakdown?.currency ?? "USD";
+  const rows = breakdown
+    ? [
+        ["טיסות", breakdown.flight, breakdown.labels.flight],
+        ["מלון", breakdown.hotel, breakdown.labels.hotel],
+        ["אוכל", breakdown.food, breakdown.labels.food],
+        ["פעילויות", breakdown.activities, breakdown.labels.activities],
+        ["עמלות", breakdown.fees, breakdown.labels.fees],
+        ["מרווח ביטחון", breakdown.safetyMargin, breakdown.labels.safetyMargin],
+      ]
+    : [];
+
+  function formatPrice(value: number) {
+    return new Intl.NumberFormat("he-IL", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900">
@@ -24,22 +39,28 @@ export function BudgetCalculator({ trip }: { trip?: TripDeal }) {
         </div>
       </div>
       <div className="mt-5 grid gap-3">
-        {[
-          ["טיסות", flight],
-          ["מלון", hotel],
-          ["אוכל", food],
-          ["פעילויות", activities],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">{label}</span>
-            <span className="font-bold text-slate-950 dark:text-white">${value}</span>
-          </div>
-        ))}
+        {rows.length ? (
+          rows.map(([label, value, labelText]) => (
+            <div key={label} className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-slate-500">{label}</span>
+              <span className="text-left font-bold text-slate-950 dark:text-white">
+                {formatPrice(Number(value))}
+                <span className="block text-xs font-medium text-slate-400">
+                  {labelText}
+                </span>
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-white/10">
+            לא זמין כרגע. יש לבצע חיפוש עם ספקי API פעילים.
+          </p>
+        )}
       </div>
       <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-white/10">
-        <span className="font-bold text-slate-950 dark:text-white">סה״כ</span>
+        <span className="font-bold text-slate-950 dark:text-white">סה"כ</span>
         <span className="text-2xl font-black text-slate-950 dark:text-white">
-          ${total}
+          {breakdown ? formatPrice(breakdown.total) : "לא זמין"}
         </span>
       </div>
     </section>
@@ -82,8 +103,8 @@ export function DashboardStats() {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {[
-        [PlaneTakeoff, "42", "הצעות טיול"],
-        [ShieldCheck, "נגיש", "בדיקת סיכונים"],
+        [PlaneTakeoff, "API", "הצעות בזמן אמת כשספקים זמינים"],
+        [ShieldCheck, "נגיש", "בדיקת סיכוני נגישות"],
         [Brain, "AI", "תכנון אישי למשפחה"],
       ].map(([Icon, value, label]) => (
         <div

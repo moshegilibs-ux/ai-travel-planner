@@ -8,7 +8,40 @@ import { toast } from "sonner";
 import { saveFavoriteTrip } from "@/lib/favorite-trips";
 import type { FlightDeal, HotelDeal, TripDeal } from "@/types/travel-marketplace";
 
-export function FlightCard({ flight }: { flight: FlightDeal }) {
+export function formatOfferPrice(value: number | null, currency: string) {
+  if (value === null) return "לא זמין כרגע";
+  return new Intl.NumberFormat("he-IL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatLastChecked(value: string) {
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function availabilityText(status: FlightDeal["availabilityStatus"]) {
+  if (status === "available") return "זמין";
+  if (status === "unavailable") return "לא זמין כרגע";
+  return "דורש אימות";
+}
+
+const cardClass =
+  "rounded-3xl border bg-white shadow-sm transition dark:bg-slate-900";
+
+export function FlightCard({
+  flight,
+  isSelected = false,
+  onSelect,
+}: {
+  flight: FlightDeal;
+  isSelected?: boolean;
+  onSelect?: (flight: FlightDeal) => void;
+}) {
   async function handleFavoriteFlight() {
     try {
       const response = await fetch("/api/favorites/flights", {
@@ -24,18 +57,34 @@ export function FlightCard({ flight }: { flight: FlightDeal }) {
       });
 
       if (!response.ok) {
-        toast.info("Sign in and configure Postgres to persist favorite flights.");
+        toast.info("כדי לשמור בענן יש להתחבר ולהגדיר PostgreSQL.");
         return;
       }
 
-      toast.success("Flight saved to favorites.");
+      toast.success("הטיסה נשמרה במועדפים.");
     } catch {
-      toast.error("Could not save this flight.");
+      toast.error("לא ניתן לשמור את הטיסה כרגע.");
     }
   }
 
+  function handleSelectFlight() {
+    onSelect?.(flight);
+    toast.success(
+      flight.bookingLink
+        ? "הטיסה נבחרה. אפשר להמשיך להזמנה."
+        : "הטיסה נבחרה כהצעה ללא קישור הזמנה.",
+    );
+  }
+
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+    <article
+      data-selected-flight={isSelected ? "true" : "false"}
+      className={`${cardClass} p-5 ${
+        isSelected
+          ? "border-sky-500 ring-4 ring-sky-500/15 dark:border-sky-300"
+          : "border-slate-200 dark:border-white/10"
+      }`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-sky-600 dark:text-sky-300">טיסה</p>
@@ -43,19 +92,11 @@ export function FlightCard({ flight }: { flight: FlightDeal }) {
             {flight.airline}
           </h3>
         </div>
-        <div className="grid gap-2 text-left">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-900 dark:bg-white/10 dark:text-white">
-            ${Math.round(flight.price)}
-          </span>
-          <button
-            type="button"
-            onClick={handleFavoriteFlight}
-            className="text-xs font-bold text-rose-600 hover:text-rose-700"
-          >
-            שמירה
-          </button>
-        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-900 dark:bg-white/10 dark:text-white">
+          {formatOfferPrice(flight.price, flight.currency)}
+        </span>
       </div>
+
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div>
           <p className="text-2xl font-bold text-slate-950 dark:text-white">
@@ -65,7 +106,7 @@ export function FlightCard({ flight }: { flight: FlightDeal }) {
         </div>
         <div className="text-center text-slate-400">
           <Plane className="mx-auto h-5 w-5" />
-          <p className="mt-1 text-xs">{flight.nonstop ? "ישירה" : "עצירה אחת"}</p>
+          <p className="mt-1 text-xs">{flight.nonstop ? "ישירה" : "עם עצירות"}</p>
         </div>
         <div className="text-left">
           <p className="text-2xl font-bold text-slate-950 dark:text-white">
@@ -74,15 +115,67 @@ export function FlightCard({ flight }: { flight: FlightDeal }) {
           <p className="text-sm text-slate-500">{flight.destination}</p>
         </div>
       </div>
+
       <p className="mt-4 inline-flex items-center gap-2 text-sm text-slate-500">
         <Clock className="h-4 w-4" />
         {flight.duration}
       </p>
+
+      <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-5 text-slate-600 dark:bg-white/10 dark:text-slate-300">
+        <p>{flight.priceLabel}</p>
+        <p>מקור: {flight.provider}</p>
+        <p>זמינות: {availabilityText(flight.availabilityStatus)}</p>
+        <p>נבדק לאחרונה: {formatLastChecked(flight.lastChecked)}</p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleSelectFlight}
+          data-testid={`select-flight-${flight.id}`}
+          className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+            isSelected
+              ? "bg-sky-600 text-white"
+              : "bg-slate-950 text-white hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950"
+          }`}
+        >
+          {isSelected ? "טיסה נבחרה" : "בחר טיסה"}
+        </button>
+        {flight.bookingLink ? (
+          <a
+            href={flight.bookingLink}
+            rel="noreferrer"
+            target="_blank"
+            className="rounded-2xl border border-sky-200 px-4 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50 dark:border-sky-400/30 dark:text-sky-200 dark:hover:bg-sky-400/10"
+          >
+            המשך להזמנה
+          </a>
+        ) : (
+          <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
+            הצעה ללא קישור הזמנה
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={handleFavoriteFlight}
+          className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
+        >
+          שמירה
+        </button>
+      </div>
     </article>
   );
 }
 
-export function HotelCard({ hotel }: { hotel: HotelDeal }) {
+export function HotelCard({
+  hotel,
+  isSelected = false,
+  onSelect,
+}: {
+  hotel: HotelDeal;
+  isSelected?: boolean;
+  onSelect?: (hotel: HotelDeal) => void;
+}) {
   async function handleFavoriteHotel() {
     try {
       const response = await fetch("/api/favorites/hotels", {
@@ -97,27 +190,50 @@ export function HotelCard({ hotel }: { hotel: HotelDeal }) {
       });
 
       if (!response.ok) {
-        toast.info("Sign in and configure Postgres to persist favorite hotels.");
+        toast.info("כדי לשמור בענן יש להתחבר ולהגדיר PostgreSQL.");
         return;
       }
 
-      toast.success("Hotel saved to favorites.");
+      toast.success("המלון נשמר במועדפים.");
     } catch {
-      toast.error("Could not save this hotel.");
+      toast.error("לא ניתן לשמור את המלון כרגע.");
     }
   }
 
+  function handleSelectHotel() {
+    onSelect?.(hotel);
+    toast.success(
+      hotel.bookingLink
+        ? "המלון נבחר. אפשר להמשיך להזמנה."
+        : "המלון נבחר כהצעה ללא קישור הזמנה.",
+    );
+  }
+
   return (
-    <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
-      <div className="relative h-44">
-        <Image
-          src={hotel.image}
-          alt={hotel.name}
-          fill
-          sizes="(max-width: 768px) 100vw, 33vw"
-          className="object-cover"
-        />
-      </div>
+    <article
+      data-selected-hotel={isSelected ? "true" : "false"}
+      className={`${cardClass} overflow-hidden ${
+        isSelected
+          ? "border-sky-500 ring-4 ring-sky-500/15 dark:border-sky-300"
+          : "border-slate-200 dark:border-white/10"
+      }`}
+    >
+      {hotel.image ? (
+        <div className="relative h-44">
+          <Image
+            src={hotel.image}
+            alt={hotel.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover"
+          />
+        </div>
+      ) : (
+        <div className="flex h-44 items-center justify-center bg-slate-100 text-sm font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300">
+          תמונה לא זמינה כרגע
+        </div>
+      )}
+
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -129,6 +245,7 @@ export function HotelCard({ hotel }: { hotel: HotelDeal }) {
             {hotel.rating}
           </span>
         </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           {hotel.amenities.map((amenity) => (
             <span
@@ -139,23 +256,66 @@ export function HotelCard({ hotel }: { hotel: HotelDeal }) {
             </span>
           ))}
         </div>
+
         <p className="mt-5 text-lg font-bold text-slate-950 dark:text-white">
-          ${hotel.pricePerNight}
+          {formatOfferPrice(hotel.pricePerNight, hotel.currency)}
           <span className="text-sm font-medium text-slate-500"> / לילה</span>
         </p>
-        <button
-          type="button"
-          onClick={handleFavoriteHotel}
-          className="mt-4 inline-flex rounded-full border border-rose-200 px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
-        >
-          שמירת מלון
-        </button>
+
+        <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs leading-5 text-slate-600 dark:bg-white/10 dark:text-slate-300">
+          <p>{hotel.priceLabel}</p>
+          <p>מקור: {hotel.provider}</p>
+          <p>זמינות: {availabilityText(hotel.availabilityStatus)}</p>
+          <p>נבדק לאחרונה: {formatLastChecked(hotel.lastChecked)}</p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleSelectHotel}
+            data-testid={`select-hotel-${hotel.id}`}
+            className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+              isSelected
+                ? "bg-sky-600 text-white"
+                : "bg-slate-950 text-white hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950"
+            }`}
+          >
+            {isSelected ? "מלון נבחר" : "בחר מלון"}
+          </button>
+          {hotel.bookingLink ? (
+            <a
+              href={hotel.bookingLink}
+              rel="noreferrer"
+              target="_blank"
+              className="rounded-2xl border border-sky-200 px-4 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50 dark:border-sky-400/30 dark:text-sky-200 dark:hover:bg-sky-400/10"
+            >
+              המשך להזמנה
+            </a>
+          ) : (
+            <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
+              הצעה ללא קישור הזמנה
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleFavoriteHotel}
+            className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
+          >
+            שמירה
+          </button>
+        </div>
       </div>
     </article>
   );
 }
 
-export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; bestValue?: boolean }) {
+export function TripDealCard({
+  trip,
+  bestValue = false,
+}: {
+  trip: TripDeal;
+  bestValue?: boolean;
+}) {
   async function handleSaveTrip() {
     const localFavorites = saveFavoriteTrip(trip);
 
@@ -167,23 +327,28 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
           externalId: trip.id,
           title: trip.title,
           destination: trip.destination,
-          totalPrice: trip.estimatedTotal,
+          totalPrice: trip.estimatedTotal ?? 0,
           payload: trip,
         }),
       });
 
       if (response.ok) {
-        toast.success("Trip saved to your account.");
+        toast.success("הטיול נשמר בחשבון שלך.");
         return;
       }
 
-      toast.success(`Trip saved locally. ${localFavorites.length} saved trips.`);
+      toast.success(`הטיול נשמר מקומית. ${localFavorites.length} מסלולים שמורים.`);
     } catch {
-      toast.success(`Trip saved locally. ${localFavorites.length} saved trips.`);
+      toast.success(`הטיול נשמר מקומית. ${localFavorites.length} מסלולים שמורים.`);
     }
   }
 
   async function handleTrackPrice() {
+    if (trip.flight.price === null) {
+      toast.info("אין מחיר טיסה מאומת למעקב כרגע.");
+      return;
+    }
+
     try {
       const response = await fetch("/api/price-tracking", {
         method: "POST",
@@ -200,13 +365,13 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
       });
 
       if (!response.ok) {
-        toast.info("Sign in and configure Postgres to track prices persistently.");
+        toast.info("כדי לעקוב בענן יש להתחבר ולהגדיר PostgreSQL.");
         return;
       }
 
-      toast.success("Price tracking enabled.");
+      toast.success("מעקב מחיר הופעל.");
     } catch {
-      toast.error("Could not enable price tracking right now.");
+      toast.error("לא ניתן להפעיל מעקב מחיר כרגע.");
     }
   }
 
@@ -214,16 +379,22 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
     <motion.article
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-slate-900"
+      className={`${cardClass} overflow-hidden hover:shadow-xl dark:border-white/10`}
     >
       <div className="relative h-56">
-        <Image
-          src={trip.image}
-          alt={trip.title}
-          fill
-          sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-cover"
-        />
+        {trip.image ? (
+          <Image
+            src={trip.image}
+            alt={trip.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-slate-100 text-sm font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300">
+            תמונה לא זמינה כרגע
+          </div>
+        )}
         {bestValue ? (
           <span className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-sm font-bold text-white shadow-lg">
             <Sparkles className="h-4 w-4" />
@@ -231,6 +402,7 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
           </span>
         ) : null}
       </div>
+
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -243,21 +415,34 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
             type="button"
             onClick={handleSaveTrip}
             className="rounded-full border border-slate-200 p-3 text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:text-white"
-            aria-label="Save favorite trip"
+            aria-label="שמירת טיול"
           >
             <Heart className="h-5 w-5" />
           </button>
         </div>
+
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <span className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
             <Plane className="h-4 w-4 text-sky-500" />
-            {trip.flight.airline} · ${Math.round(trip.flight.price)}
+            {trip.flight.airline} · {formatOfferPrice(trip.flight.price, trip.flight.currency)}
           </span>
           <span className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
             <Hotel className="h-4 w-4 text-sky-500" />
-            {trip.hotel.name} · ${trip.hotel.pricePerNight}/לילה
+            {trip.hotel.name} · {formatOfferPrice(trip.hotel.pricePerNight, trip.hotel.currency)}/לילה
           </span>
         </div>
+
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-white/10 dark:text-slate-300">
+          <p className="font-bold text-slate-950 dark:text-white">פירוט תקציב</p>
+          <div className="mt-2 grid gap-1">
+            <p>טיסה: {formatOfferPrice(trip.budgetBreakdown.flight, trip.currency)} · {trip.budgetBreakdown.labels.flight}</p>
+            <p>מלון: {formatOfferPrice(trip.budgetBreakdown.hotel, trip.currency)} · {trip.budgetBreakdown.labels.hotel}</p>
+            <p>אוכל: {formatOfferPrice(trip.budgetBreakdown.food, trip.currency)} · הערכה בלבד</p>
+            <p>אטרקציות: {formatOfferPrice(trip.budgetBreakdown.activities, trip.currency)} · הערכה בלבד</p>
+            <p>עמלות ומרווח ביטחון: {formatOfferPrice(trip.budgetBreakdown.fees + trip.budgetBreakdown.safetyMargin, trip.currency)} · הערכה בלבד</p>
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           {trip.tags.map((tag) => (
             <span
@@ -269,11 +454,14 @@ export function TripDealCard({ trip, bestValue = false }: { trip: TripDeal; best
             </span>
           ))}
         </div>
-        <div className="mt-5 flex items-center justify-between gap-4">
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-2xl font-black text-slate-950 dark:text-white">
-            ${trip.estimatedTotal}
+            {trip.estimatedTotal === null
+              ? "לא זמין כרגע"
+              : formatOfferPrice(trip.estimatedTotal, trip.currency)}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleTrackPrice}

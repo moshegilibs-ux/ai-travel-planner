@@ -40,11 +40,9 @@ export async function getFlights(input: FlightSearchInput) {
       flights?: FlightDeal[];
     };
 
-    return data.flights?.length ? data.flights : generateMockFlights(input);
+    return data.flights ?? [];
   } catch {
-    // TODO: Add user-facing provider status when a production Flight API fails.
-    logPublicMockMode("Flight API failed, falling back to mock flights.");
-    return generateMockFlights(input);
+    return [];
   }
 }
 

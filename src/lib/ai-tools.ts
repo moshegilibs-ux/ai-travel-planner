@@ -73,7 +73,10 @@ export function searchFlightsTool(flights: Awaited<ReturnType<typeof searchTrave
   return flights.slice(0, 5).map((flight) => ({
     id: flight.id,
     airline: flight.airline,
-    price: Math.round(flight.price),
+    price: flight.price === null ? null : Math.round(flight.price),
+    currency: flight.currency,
+    availabilityStatus: flight.availabilityStatus,
+    lastChecked: flight.lastChecked,
     departureTime: flight.departureTime,
     arrivalTime: flight.arrivalTime,
     duration: flight.duration,
@@ -96,13 +99,13 @@ export function searchHotelsTool(hotels: Awaited<ReturnType<typeof searchTravel>
 
 export function calculateBudgetTool(deals: TripDeal[], intent: AiTripIntent) {
   const bestDeal = deals[0];
-  const estimatedTotal = bestDeal?.estimatedTotal ?? intent.budget;
+  const estimatedTotal = bestDeal?.estimatedTotal ?? 0;
   const dailyBudget = Math.round(estimatedTotal / Math.max(1, intent.days));
 
   return {
     estimatedTotal,
     dailyBudget,
-    withinBudget: estimatedTotal <= intent.budget,
+    withinBudget: estimatedTotal > 0 && estimatedTotal <= intent.budget,
     savingsGap: intent.budget - estimatedTotal,
   };
 }
@@ -140,12 +143,12 @@ export function compareDealsTool(deals: TripDeal[]) {
 
 export function optimizeDeals(deals: TripDeal[], budget: number) {
   return [...deals]
-    .filter((deal) => deal.estimatedTotal <= budget)
+    .filter((deal) => deal.estimatedTotal !== null && deal.estimatedTotal <= budget)
     .sort((a, b) => {
       const aScore =
-        a.hotel.rating * 100 - a.estimatedTotal / 10 + (a.flight.nonstop ? 40 : 0);
+        a.hotel.rating * 100 - (a.estimatedTotal ?? 0) / 10 + (a.flight.nonstop ? 40 : 0);
       const bScore =
-        b.hotel.rating * 100 - b.estimatedTotal / 10 + (b.flight.nonstop ? 40 : 0);
+        b.hotel.rating * 100 - (b.estimatedTotal ?? 0) / 10 + (b.flight.nonstop ? 40 : 0);
       return bScore - aScore;
     });
 }
@@ -179,7 +182,7 @@ function buildSmartRecommendations(intent: AiTripIntent, deals: TripDeal[]) {
 
 function predictPriceDirection(intent: AiTripIntent, deals: TripDeal[]) {
   const average = deals.length
-    ? deals.reduce((sum, deal) => sum + deal.estimatedTotal, 0) / deals.length
+    ? deals.reduce((sum, deal) => sum + (deal.estimatedTotal ?? 0), 0) / deals.length
     : intent.budget;
   const pressure = intent.month?.toLowerCase().includes("august") ? 0.72 : 0.54;
 

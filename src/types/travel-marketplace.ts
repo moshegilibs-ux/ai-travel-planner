@@ -43,7 +43,13 @@ export type FlightDeal = {
   destination: string;
   departureTime: string;
   arrivalTime: string;
-  price: number;
+  price: number | null;
+  currency: string;
+  provider: string;
+  availabilityStatus: "available" | "unavailable" | "unknown";
+  lastChecked: string;
+  bookingLink?: string;
+  priceLabel: "מחיר בזמן אמת" | "לא זמין כרגע";
   duration: string;
   nonstop: boolean;
 };
@@ -55,7 +61,13 @@ export type HotelDeal = {
   rating: number;
   stars: number;
   location: string;
-  pricePerNight: number;
+  pricePerNight: number | null;
+  currency: string;
+  provider: string;
+  availabilityStatus: "available" | "unavailable" | "unknown";
+  lastChecked: string;
+  bookingLink?: string;
+  priceLabel: "מחיר בזמן אמת" | "לא זמין כרגע";
   amenities: string[];
 };
 
@@ -68,14 +80,40 @@ export type TripDeal = {
   hotel: HotelDeal;
   aiSummary: string;
   tags: string[];
-  estimatedTotal: number;
+  estimatedTotal: number | null;
+  currency: string;
+  budgetBreakdown: BudgetBreakdown;
+  budgetValidation: {
+    isValid: boolean;
+    visibleTotal: number;
+    calculatedTotal: number;
+  };
+};
+
+export type BudgetBreakdown = {
+  flight: number;
+  hotel: number;
+  food: number;
+  activities: number;
+  fees: number;
+  safetyMargin: number;
+  total: number;
+  currency: string;
+  labels: {
+    flight: "מחיר בזמן אמת" | "לא זמין כרגע";
+    hotel: "מחיר בזמן אמת" | "לא זמין כרגע";
+    food: "הערכה בלבד";
+    activities: "הערכה בלבד";
+    fees: "הערכה בלבד";
+    safetyMargin: "הערכה בלבד";
+  };
 };
 
 export type TravelSearchResponse = {
   flights: FlightDeal[];
   hotels: HotelDeal[];
   deals: TripDeal[];
-  mode: "amadeus" | "mock";
+  mode: "amadeus" | "mock" | "unavailable";
   warning?: string;
   warnings?: {
     flights?: string;
