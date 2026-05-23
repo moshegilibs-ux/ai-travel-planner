@@ -191,6 +191,9 @@ export function LiveTripWidgets({
             <p className="text-2xl font-black text-slate-950 dark:text-white">
               {weather.data.current.temperatureC ?? "לא זמין"}°C
             </p>
+            <p className="mt-1 text-sm font-black text-sky-700 dark:text-sky-200">
+              {weather.data.destination}
+            </p>
             <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
               {weather.data.current.description || "תיאור לא זמין"}
             </p>

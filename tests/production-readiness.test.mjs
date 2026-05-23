@@ -93,6 +93,27 @@ test("trip flight search renders unavailable and failed request states", () => {
   assert.match(route, /warning:\s*"לא נמצאו טיסות"/);
 });
 
+test("weather route validates only weather configuration and maps airport codes", () => {
+  const route = read("src/app/api/weather/route.ts");
+
+  assert.equal(route.includes("validateProductionRuntimeEnv"), false);
+  assert.match(route, /getWeatherApiKey/);
+  assert.match(route, /par:\s*"Paris"/);
+  assert.match(route, /tlv:\s*"Tel Aviv"/);
+  assert.match(route, /fetchOpenWeather/);
+  assert.match(route, /fetchWeatherApi/);
+  assert.match(route, /console\.error\("\[weather\]/);
+});
+
+test("weather widget renders successful city, temperature and condition", () => {
+  const source = read("src/components/live-trip-widgets.tsx");
+
+  assert.match(source, /weather\.data\.current\.temperatureC/);
+  assert.match(source, /weather\.data\.destination/);
+  assert.match(source, /weather\.data\.current\.description/);
+  assert.match(source, /fetch\(`\/api\/weather\?\$\{params\.toString\(\)\}`/);
+});
+
 test("real search provider labels unavailable data instead of inventing prices", () => {
   const source = read("src/lib/amadeus.ts");
   assert.match(source, /טיסות לא זמינות כרגע/);
