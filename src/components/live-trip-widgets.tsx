@@ -182,7 +182,7 @@ export function LiveTripWidgets({
 
       <LiveWidgetShell
         icon={<CloudSun className="h-5 w-5" />}
-        title={`מזג אוויר ב${destination}`}
+        title="מזג אוויר ביעד"
         isLoading={weather.isLoading}
         onRetry={() => setReloadKey((value) => value + 1)}
       >
