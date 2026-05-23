@@ -114,6 +114,26 @@ test("weather widget renders successful city, temperature and condition", () => 
   assert.match(source, /fetch\(`\/api\/weather\?\$\{params\.toString\(\)\}`/);
 });
 
+test("fx route validates only FX configuration and supports real providers", () => {
+  const route = read("src/app/api/fx/route.ts");
+
+  assert.equal(route.includes("validateProductionRuntimeEnv"), false);
+  assert.match(route, /getFxApiKey/);
+  assert.match(route, /fetchExchangeRateHost/);
+  assert.match(route, /fetchExchangeRateApi/);
+  assert.match(route, /שער מטבע לא זמין כרגע/);
+  assert.match(route, /console\.error\("\[fx\]/);
+});
+
+test("fx widget renders converted amount and source currency", () => {
+  const source = read("src/components/live-trip-widgets.tsx");
+
+  assert.match(source, /fx\.data\?\.available/);
+  assert.match(source, /fx\.data\.converted/);
+  assert.match(source, /formatCurrencyAmount\(fx\.data\.amount, fx\.data\.from \|\| currency\)/);
+  assert.match(source, /fetch\(`\/api\/fx\?\$\{params\.toString\(\)\}`/);
+});
+
 test("real search provider labels unavailable data instead of inventing prices", () => {
   const source = read("src/lib/amadeus.ts");
   assert.match(source, /טיסות לא זמינות כרגע/);

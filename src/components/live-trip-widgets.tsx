@@ -171,6 +171,9 @@ export function LiveTripWidgets({
                 maximumFractionDigits: 0,
               }).format(fx.data.converted)}
             </p>
+            <p className="mt-1 text-sm font-black text-sky-700 dark:text-sky-200">
+              {fx.data.amount ? `${formatCurrencyAmount(fx.data.amount, fx.data.from || currency)} -> ILS` : ""}
+            </p>
             <p className="mt-2 text-sm text-slate-500">
               מקור: {fx.data.provider} · נבדק לאחרונה {formatLastChecked(fx.data.lastChecked)}
             </p>
@@ -304,4 +307,12 @@ function formatLastChecked(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatCurrencyAmount(value: number, currency: string) {
+  return new Intl.NumberFormat("he-IL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
