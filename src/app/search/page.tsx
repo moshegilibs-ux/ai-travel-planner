@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { SearchResultsView } from "@/components/search-results-view";
+import { getShortTermRentals } from "@/data/short-term-rentals";
 import { searchTravel } from "@/lib/amadeus";
 import type { SearchParams } from "@/types/travel-marketplace";
 import type { Metadata } from "next";
@@ -26,7 +27,7 @@ export default async function SearchPage({
   const params = await searchParams;
   const query: SearchParams = {
     from: getParam(params.from) || "Tel Aviv",
-    destination: getParam(params.destination) || "Paris",
+    destination: getParam(params.destination) || "Barcelona",
     departureDate: getParam(params.departureDate) || "2026-06-10",
     returnDate: getParam(params.returnDate) || "2026-06-15",
     travelers: Number(getParam(params.travelers) || 2),
@@ -59,6 +60,7 @@ export default async function SearchPage({
     cheapestMonth: query.cheapestMonth,
     nearbyAirports: query.nearbyAirports,
   });
+  const rentals = getShortTermRentals(query.destination);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
@@ -67,6 +69,7 @@ export default async function SearchPage({
         destination={query.destination}
         flights={results.flights}
         hotels={results.hotels}
+        rentals={rentals}
         deals={results.deals}
         warning={results.warning}
         warnings={results.warnings}

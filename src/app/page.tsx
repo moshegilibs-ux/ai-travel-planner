@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Image from "next/image";
 import { AppHeader } from "@/components/app-header";
 import { SearchForm } from "@/components/search-form";
@@ -14,12 +14,14 @@ import { TripDealCard } from "@/components/deal-cards";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { CustomItinerarySection } from "@/components/custom-itinerary-section";
+import { getTranslations } from "next-intl/server";
 
 export default async function Home() {
+  const heroT = await getTranslations("hero");
   const flags = getFeatureFlags();
   const deals = await getTripDeals({
     from: "Tel Aviv",
-    destination: "Paris",
+    destination: "Barcelona",
     departureDate: "2026-06-10",
     returnDate: "2026-06-15",
     travelers: 2,
@@ -33,7 +35,7 @@ export default async function Home() {
         <section className="relative overflow-hidden bg-[#f8fbff] dark:bg-slate-950">
           <div className="absolute inset-0">
             <Image
-              src="/accessible-family-hero.png"
+              src="/accessible-family-hero-v2.png"
               alt="משפחה רב־דורית בטיול נגיש עם סבא בקלנועית ובן בכיסא גלגלים"
               fill
               priority
@@ -47,30 +49,29 @@ export default async function Home() {
             <div className="mx-auto w-full max-w-[calc(100vw-2.5rem)] text-center md:ml-auto md:mr-0 md:max-w-2xl md:text-right">
               <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-bold text-amber-600 shadow-sm dark:bg-white/10 dark:text-amber-200">
                 <Sparkles className="h-4 w-4" />
-                מטיילים יחד, בלי גבולות
+                {heroT("badge")}
               </p>
               <h1 className="max-w-full text-4xl font-black leading-tight tracking-tight text-[#15315d] sm:text-6xl md:text-8xl dark:text-white">
-                <span className="block sm:inline">טיולים</span>{" "}
-                <span className="block sm:inline">וחלומות</span>
+                {heroT("title")}
               </h1>
               <p className="mt-4 text-xl font-black text-amber-600 sm:text-2xl dark:text-amber-300">
-                מתכננים חופשה שמתאימה לכולם
+                {heroT("subtitle")}
               </p>
               <p className="mt-5 max-w-2xl text-lg font-semibold leading-8 text-slate-700 dark:text-slate-200">
-                <span className="block">מערכת חכמה לתכנון טיולים למשפחות,</span>
-                <span className="block">מבוגרים ואנשים עם מוגבלויות</span>
-                <span className="block">עם דגש על נגישות, נוחות וביטחון.</span>
+                <span className="block">{heroT("copy1")}</span>
+                <span className="block">{heroT("copy2")}</span>
+                <span className="block">{heroT("copy3")}</span>
               </p>
               <Link
                 href="#accessible-search"
                 className="mt-7 inline-flex min-h-14 w-full max-w-full items-center justify-center gap-3 rounded-2xl bg-[#15315d] px-5 py-4 text-base font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-emerald-700 sm:w-auto sm:px-8 sm:text-lg"
               >
-                תכננו לי טיול נגיש
+                {heroT("cta")}
                 <ArrowLeft className="h-5 w-5" />
               </Link>
               <div className="relative mt-6 h-48 overflow-hidden rounded-[1.75rem] bg-white/70 shadow-xl md:hidden">
                 <Image
-                  src="/accessible-family-hero.png"
+                  src="/accessible-family-hero-v2.png"
                   alt="משפחה רב־דורית בטיול נגיש עם סבא בקלנועית ובן בכיסא גלגלים"
                   fill
                   sizes="100vw"
@@ -81,10 +82,10 @@ export default async function Home() {
 
             <div className="mx-auto mt-8 grid w-full max-w-[calc(100vw-2.5rem)] grid-cols-2 gap-2 rounded-[1.75rem] bg-white/85 p-3 shadow-xl backdrop-blur md:mx-0 md:max-w-3xl md:grid-cols-4 dark:bg-white/10">
               {[
-                [Accessibility, "נגישות מלאה"],
-                [ShieldCheck, "בטיחות ושקט נפשי"],
-                [HeartHandshake, "מתאים לכל המשפחה"],
-                [Sparkles, "תכנון חכם"],
+                [Accessibility, heroT("accessibility")],
+                [ShieldCheck, heroT("safety")],
+                [HeartHandshake, heroT("family")],
+                [Sparkles, heroT("smart")],
               ].map(([Icon, label]) => (
                 <div
                   key={label as string}
@@ -228,3 +229,4 @@ export default async function Home() {
     </div>
   );
 }
+

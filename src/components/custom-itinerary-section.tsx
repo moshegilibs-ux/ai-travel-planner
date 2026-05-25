@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useLocale } from "next-intl";
 import {
   CalendarDays,
   Download,
@@ -47,6 +48,8 @@ import {
   removeSavedItinerary,
   saveItineraries,
 } from "@/lib/saved-itineraries";
+import { readMyTrip, writeMyTrip } from "@/lib/my-trip";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 const tripTypes: TripType[] = [
   "רומנטי",
@@ -72,6 +75,7 @@ const replacementOptions: Array<[ReplacementPreference, string]> = [
 ];
 
 export function CustomItinerarySection() {
+  const locale = useLocale();
   const [destination, setDestination] = useState("");
   const [days, setDays] = useState(3);
   const [budget, setBudget] = useState("");
@@ -143,6 +147,7 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         days,
         budget: budget.trim(),
         tripType,
+        locale,
         selectedFlight,
         preferences: {
           environment,
@@ -183,6 +188,7 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     if (!currentUser) {
       saveItineraries(nextSavedItineraries);
     }
+    writeMyTrip({ ...readMyTrip(), itinerary });
 
     setSavedItineraries(nextSavedItineraries);
     setSaveMessage(
@@ -292,6 +298,14 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
       : [place, ...savedPlaces].slice(0, 30);
 
     window.localStorage.setItem("saved-itinerary-places", JSON.stringify(nextPlaces));
+    writeMyTrip({
+      ...readMyTrip(),
+      attractions: nextPlaces.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.shortDescription,
+      })),
+    });
     setSaveMessage(`המקום "${place.name}" נשמר לרשימת המקומות.`);
   }
 
@@ -326,14 +340,17 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <label className="font-semibold text-slate-800">
               יעד
-              <input
-                className={fieldClass}
-                disabled={isLoading}
-                onChange={(event) => setDestination(event.target.value)}
-                placeholder="למשל תאילנד"
-                type="text"
-                value={destination}
-              />
+              <span className="relative block">
+                <input
+                  className={`${fieldClass} pl-12`}
+                  disabled={isLoading}
+                  onChange={(event) => setDestination(event.target.value)}
+                  placeholder="למשל תאילנד"
+                  type="text"
+                  value={destination}
+                />
+                <VoiceInputButton onTranscript={setDestination} />
+              </span>
             </label>
 
             <label className="font-semibold text-slate-800">
@@ -351,14 +368,17 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 
             <label className="font-semibold text-slate-800">
               תקציב
-              <input
-                className={fieldClass}
-                disabled={isLoading}
-                onChange={(event) => setBudget(event.target.value)}
-                placeholder="למשל $150 ליום"
-                type="text"
-                value={budget}
-              />
+              <span className="relative block">
+                <input
+                  className={`${fieldClass} pl-12`}
+                  disabled={isLoading}
+                  onChange={(event) => setBudget(event.target.value)}
+                  placeholder="למשל $150 ליום"
+                  type="text"
+                  value={budget}
+                />
+                <VoiceInputButton onTranscript={setBudget} />
+              </span>
             </label>
 
             <label className="font-semibold text-slate-800">

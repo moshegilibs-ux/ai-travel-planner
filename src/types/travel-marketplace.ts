@@ -61,6 +61,8 @@ export type HotelDeal = {
   rating: number;
   stars: number;
   location: string;
+  distanceFromCenter?: string;
+  suitability?: string[];
   pricePerNight: number | null;
   currency: string;
   provider: string;
@@ -69,6 +71,31 @@ export type HotelDeal = {
   bookingLink?: string;
   priceLabel: "מחיר בזמן אמת" | "לא זמין כרגע";
   amenities: string[];
+};
+
+export type ShortTermRental = {
+  id: string;
+  name: string;
+  type: "apartment" | "villa" | "accessible-suite";
+  image: string;
+  city: string;
+  neighborhood: string;
+  location: string;
+  pricePerNight: number;
+  currency: string;
+  rating: number;
+  rooms: number;
+  guests: number;
+  distanceFromCenter: string;
+  amenities: string[];
+  hasKitchen: boolean;
+  hasElevator: boolean;
+  hasParking: boolean;
+  isAccessible: boolean;
+  kidsFriendly: boolean;
+  bookingLink?: string;
+  provider: string;
+  lastChecked: string;
 };
 
 export type TripDeal = {

@@ -124,6 +124,34 @@ const locationCodeMap: Record<string, string> = {
   greece: "ATH",
   athens: "ATH",
   ath: "ATH",
+  "new york": "NYC",
+  nyc: "NYC",
+  madrid: "MAD",
+  mad: "MAD",
+  lisbon: "LIS",
+  lis: "LIS",
+  berlin: "BER",
+  ber: "BER",
+  vienna: "VIE",
+  vie: "VIE",
+  prague: "PRG",
+  prg: "PRG",
+  budapest: "BUD",
+  bud: "BUD",
+  zurich: "ZRH",
+  zrh: "ZRH",
+  milan: "MIL",
+  mil: "MIL",
+  istanbul: "IST",
+  ist: "IST",
+  copenhagen: "CPH",
+  cph: "CPH",
+  singapore: "SIN",
+  sin: "SIN",
+  seoul: "SEL",
+  sel: "SEL",
+  sydney: "SYD",
+  syd: "SYD",
 };
 
 export function isAmadeusConfigured() {
@@ -311,7 +339,7 @@ export async function getTripDeals(params: SearchParams): Promise<TripDeal[]> {
 export async function getTripById(id: string) {
   const deals = await getTripDeals({
     from: "Tel Aviv",
-    destination: "Paris",
+    destination: "Barcelona",
     departureDate: "2026-06-10",
     returnDate: "2026-06-15",
     travelers: 2,
@@ -526,6 +554,8 @@ function getMockHotels(params: SearchParams) {
     .map((hotel, index) => ({
       ...hotel,
       location: `${params.destination || "Central"} · ${hotel.location}`,
+      distanceFromCenter: `${(0.4 + index * 0.7).toFixed(1)} km from center`,
+      suitability: getHotelSuitability(index),
       pricePerNight: Math.max(65, (hotel.pricePerNight ?? 0) + index * 11),
       currency: "USD",
       provider: "Development mock",
@@ -560,6 +590,7 @@ function normalizeHotelOffer(
     rating: Math.min(4.9, 4 + safeStars / 10),
     stars: safeStars,
     location: `${params.destination || offer.hotel.cityCode || "City center"} · Amadeus hotel`,
+    distanceFromCenter: `${(0.6 + index * 0.8).toFixed(1)} km from center`,
     pricePerNight: Math.round(price),
     currency: offer.offers?.[0]?.price?.currency || "USD",
     provider: "Amadeus Hotels",
@@ -568,6 +599,7 @@ function normalizeHotelOffer(
     bookingLink: undefined,
     priceLabel: "מחיר בזמן אמת",
     amenities: getHotelAmenities(index, safeStars),
+    suitability: getHotelSuitability(index),
   };
 }
 
@@ -583,6 +615,17 @@ function getHotelAmenities(index: number, stars: number) {
     ...(baseAmenities[index % baseAmenities.length] ?? baseAmenities[0]),
     stars >= 5 ? "Luxury" : "Best value",
   ];
+}
+
+function getHotelSuitability(index: number) {
+  const options = [
+    ["Wheelchair Accessible", "Elder Friendly", "Kids Friendly"],
+    ["Elder Friendly", "Central location", "Short walking distances"],
+    ["Kids Friendly", "Family rooms", "Kitchenette"],
+    ["Wheelchair Accessible", "Elevator", "Accessible rooms"],
+  ];
+
+  return options[index % options.length] ?? options[0];
 }
 
 function buildTripDeals({

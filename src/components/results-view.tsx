@@ -24,6 +24,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { ItineraryResponse, Recommendation, TimelineActivity } from "@/lib/itinerary-types";
+import { TripMap } from "@/components/trip-map";
 
 const resultStorageKey = "ai-travel-planner:last-itinerary";
 
@@ -341,6 +342,8 @@ export function ResultsView() {
               ))}
             </div>
           </div>
+
+          <TripMap destination={itinerary.destination} itinerary={itinerary} />
 
           {days.map((day) => (
             <article key={day.day} className="rounded-lg border border-slate-200 bg-slate-100/60 p-3 shadow-sm">

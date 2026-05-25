@@ -9,6 +9,7 @@ const aiItinerarySchema = z.object({
   destination: z.string().min(1),
   days: z.number().int().min(1).max(21),
   budget: z.string().min(1),
+  locale: z.string().optional(),
   interests: z.array(z.string()).default([]),
   tripType: z
     .enum(["רומנטי", "משפחתי", "בטן גב", "שופינג", "טבע והרפתקאות", "תקציב נמוך"])
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     destination: payload.destination,
     days: payload.days,
     budget: payload.budget,
+    locale: payload.locale,
     tripType,
     preferences: payload.preferences,
     selectedFlight: payload.selectedFlight as CustomItineraryInput["selectedFlight"],

@@ -1,37 +1,73 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Accessibility, Bell, Clock, Heart, Hotel, Plane, Sparkles, Star } from "lucide-react";
+import {
+  Accessibility,
+  Bell,
+  Building2,
+  Car,
+  Clock,
+  Heart,
+  Hotel,
+  Plane,
+  Sparkles,
+  Star,
+  Users,
+  Utensils,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { saveFavoriteTrip } from "@/lib/favorite-trips";
-import type { FlightDeal, HotelDeal, TripDeal } from "@/types/travel-marketplace";
+import {
+  addFlightToMyTrip,
+  addHotelToMyTrip,
+  addRentalToMyTrip,
+} from "@/lib/my-trip";
+import type {
+  FlightDeal,
+  HotelDeal,
+  ShortTermRental,
+  TripDeal,
+} from "@/types/travel-marketplace";
 
-export function formatOfferPrice(value: number | null, currency: string) {
-  if (value === null) return "לא זמין כרגע";
-  return new Intl.NumberFormat("he-IL", {
+const cardClass =
+  "rounded-3xl border bg-white shadow-sm transition dark:bg-slate-900";
+
+export function formatOfferPrice(value: number | null, currency: string, locale = "he") {
+  if (value === null) return "";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-function formatLastChecked(value: string) {
-  return new Intl.DateTimeFormat("he-IL", {
+function formatLastChecked(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
 }
 
-function availabilityText(status: FlightDeal["availabilityStatus"]) {
-  if (status === "available") return "זמין";
-  if (status === "unavailable") return "לא זמין כרגע";
-  return "דורש אימות";
-}
+function useCardText() {
+  const t = useTranslations("cards");
+  const locale = useLocale();
 
-const cardClass =
-  "rounded-3xl border bg-white shadow-sm transition dark:bg-slate-900";
+  return {
+    t,
+    locale,
+    price: (value: number | null, currency: string) =>
+      value === null ? t("notAvailable") : formatOfferPrice(value, currency, locale),
+    availability: (status: FlightDeal["availabilityStatus"]) => {
+      if (status === "available") return t("available");
+      if (status === "unavailable") return t("unavailable");
+      return t("verify");
+    },
+  };
+}
 
 export function FlightCard({
   flight,
@@ -42,6 +78,9 @@ export function FlightCard({
   isSelected?: boolean;
   onSelect?: (flight: FlightDeal) => void;
 }) {
+  const { t, locale, price, availability } = useCardText();
+  const toastT = useTranslations("toasts");
+
   async function handleFavoriteFlight() {
     try {
       const response = await fetch("/api/favorites/flights", {
@@ -57,22 +96,23 @@ export function FlightCard({
       });
 
       if (!response.ok) {
-        toast.info("כדי לשמור בענן יש להתחבר ולהגדיר PostgreSQL.");
+        toast.info(toastT("cloudLogin"));
         return;
       }
 
-      toast.success("הטיסה נשמרה במועדפים.");
+      toast.success(toastT("flightSaved"));
     } catch {
-      toast.error("לא ניתן לשמור את הטיסה כרגע.");
+      toast.error(toastT("flightSaveError"));
     }
   }
 
   function handleSelectFlight() {
     onSelect?.(flight);
+    addFlightToMyTrip(flight);
     toast.success(
       flight.bookingLink
-        ? "הטיסה נבחרה. אפשר להמשיך להזמנה."
-        : "הטיסה נבחרה כהצעה ללא קישור הזמנה.",
+        ? toastT("flightSelectedBooking")
+        : toastT("flightSelectedNoBooking"),
     );
   }
 
@@ -87,13 +127,13 @@ export function FlightCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-bold text-sky-600 dark:text-sky-300">טיסה</p>
+          <p className="text-sm font-bold text-sky-600 dark:text-sky-300">{t("flight")}</p>
           <h3 className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
             {flight.airline}
           </h3>
         </div>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-900 dark:bg-white/10 dark:text-white">
-          {formatOfferPrice(flight.price, flight.currency)}
+          {price(flight.price, flight.currency)}
         </span>
       </div>
 
@@ -106,7 +146,7 @@ export function FlightCard({
         </div>
         <div className="text-center text-slate-400">
           <Plane className="mx-auto h-5 w-5" />
-          <p className="mt-1 text-xs">{flight.nonstop ? "ישירה" : "עם עצירות"}</p>
+          <p className="mt-1 text-xs">{flight.nonstop ? t("direct") : t("stops")}</p>
         </div>
         <div className="text-left">
           <p className="text-2xl font-bold text-slate-950 dark:text-white">
@@ -123,9 +163,9 @@ export function FlightCard({
 
       <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-5 text-slate-600 dark:bg-white/10 dark:text-slate-300">
         <p>{flight.priceLabel}</p>
-        <p>מקור: {flight.provider}</p>
-        <p>זמינות: {availabilityText(flight.availabilityStatus)}</p>
-        <p>נבדק לאחרונה: {formatLastChecked(flight.lastChecked)}</p>
+        <p>{t("source")}: {flight.provider}</p>
+        <p>{t("availability")}: {availability(flight.availabilityStatus)}</p>
+        <p>{t("lastChecked")}: {formatLastChecked(flight.lastChecked, locale)}</p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -139,7 +179,7 @@ export function FlightCard({
               : "bg-slate-950 text-white hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950"
           }`}
         >
-          {isSelected ? "טיסה נבחרה" : "בחר טיסה"}
+          {isSelected ? t("flightSelected") : t("selectFlight")}
         </button>
         {flight.bookingLink ? (
           <a
@@ -148,11 +188,11 @@ export function FlightCard({
             target="_blank"
             className="rounded-2xl border border-sky-200 px-4 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50 dark:border-sky-400/30 dark:text-sky-200 dark:hover:bg-sky-400/10"
           >
-            המשך להזמנה
+            {t("continueBooking")}
           </a>
         ) : (
           <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
-            הצעה ללא קישור הזמנה
+            {t("noBookingLink")}
           </span>
         )}
         <button
@@ -160,7 +200,7 @@ export function FlightCard({
           onClick={handleFavoriteFlight}
           className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
         >
-          שמירה
+          {t("save")}
         </button>
       </div>
     </article>
@@ -176,6 +216,9 @@ export function HotelCard({
   isSelected?: boolean;
   onSelect?: (hotel: HotelDeal) => void;
 }) {
+  const { t, locale, price, availability } = useCardText();
+  const toastT = useTranslations("toasts");
+
   async function handleFavoriteHotel() {
     try {
       const response = await fetch("/api/favorites/hotels", {
@@ -190,22 +233,23 @@ export function HotelCard({
       });
 
       if (!response.ok) {
-        toast.info("כדי לשמור בענן יש להתחבר ולהגדיר PostgreSQL.");
+        toast.info(toastT("cloudLogin"));
         return;
       }
 
-      toast.success("המלון נשמר במועדפים.");
+      toast.success(toastT("hotelSaved"));
     } catch {
-      toast.error("לא ניתן לשמור את המלון כרגע.");
+      toast.error(toastT("hotelSaveError"));
     }
   }
 
   function handleSelectHotel() {
     onSelect?.(hotel);
+    addHotelToMyTrip(hotel);
     toast.success(
       hotel.bookingLink
-        ? "המלון נבחר. אפשר להמשיך להזמנה."
-        : "המלון נבחר כהצעה ללא קישור הזמנה.",
+        ? toastT("hotelSelectedBooking")
+        : toastT("hotelSelectedNoBooking"),
     );
   }
 
@@ -230,7 +274,7 @@ export function HotelCard({
         </div>
       ) : (
         <div className="flex h-44 items-center justify-center bg-slate-100 text-sm font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300">
-          תמונה לא זמינה כרגע
+          {t("imageUnavailable")}
         </div>
       )}
 
@@ -239,6 +283,9 @@ export function HotelCard({
           <div>
             <h3 className="font-bold text-slate-950 dark:text-white">{hotel.name}</h3>
             <p className="mt-1 text-sm text-slate-500">{hotel.location}</p>
+            <p className="mt-1 text-sm font-bold text-sky-700 dark:text-sky-300">
+              {hotel.distanceFromCenter ?? "1.2 km from center"}
+            </p>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
             <Star className="h-4 w-4 fill-amber-500" />
@@ -247,9 +294,9 @@ export function HotelCard({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {hotel.amenities.map((amenity) => (
+          {[...hotel.amenities, ...(hotel.suitability ?? [])].map((amenity, index) => (
             <span
-              key={amenity}
+              key={`${amenity}-${index}`}
               className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-200"
             >
               {amenity}
@@ -258,15 +305,15 @@ export function HotelCard({
         </div>
 
         <p className="mt-5 text-lg font-bold text-slate-950 dark:text-white">
-          {formatOfferPrice(hotel.pricePerNight, hotel.currency)}
-          <span className="text-sm font-medium text-slate-500"> / לילה</span>
+          {price(hotel.pricePerNight, hotel.currency)}
+          <span className="text-sm font-medium text-slate-500"> / {t("perNight")}</span>
         </p>
 
         <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs leading-5 text-slate-600 dark:bg-white/10 dark:text-slate-300">
           <p>{hotel.priceLabel}</p>
-          <p>מקור: {hotel.provider}</p>
-          <p>זמינות: {availabilityText(hotel.availabilityStatus)}</p>
-          <p>נבדק לאחרונה: {formatLastChecked(hotel.lastChecked)}</p>
+          <p>{t("source")}: {hotel.provider}</p>
+          <p>{t("availability")}: {availability(hotel.availabilityStatus)}</p>
+          <p>{t("lastChecked")}: {formatLastChecked(hotel.lastChecked, locale)}</p>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -280,7 +327,7 @@ export function HotelCard({
                 : "bg-slate-950 text-white hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950"
             }`}
           >
-            {isSelected ? "מלון נבחר" : "בחר מלון"}
+            {isSelected ? t("hotelAdded") : t("addToTrip")}
           </button>
           {hotel.bookingLink ? (
             <a
@@ -289,11 +336,11 @@ export function HotelCard({
               target="_blank"
               className="rounded-2xl border border-sky-200 px-4 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50 dark:border-sky-400/30 dark:text-sky-200 dark:hover:bg-sky-400/10"
             >
-              המשך להזמנה
+              {t("continueBooking")}
             </a>
           ) : (
             <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
-              הצעה ללא קישור הזמנה
+              {t("noBookingLink")}
             </span>
           )}
           <button
@@ -301,11 +348,156 @@ export function HotelCard({
             onClick={handleFavoriteHotel}
             className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
           >
-            שמירה
+            {t("save")}
           </button>
         </div>
       </div>
     </article>
+  );
+}
+
+export function ShortTermRentalCard({
+  rental,
+  isSelected = false,
+  onSelect,
+}: {
+  rental: ShortTermRental;
+  isSelected?: boolean;
+  onSelect?: (rental: ShortTermRental) => void;
+}) {
+  const { t, locale } = useCardText();
+  const rentalsT = useTranslations("rentals");
+
+  function handleSelectRental() {
+    onSelect?.(rental);
+    addRentalToMyTrip(rental);
+    toast.success(rentalsT("addedToast", { name: rental.name }));
+  }
+
+  const features = [
+    {
+      label: rentalsT("roomsCount", { count: rental.rooms }),
+      icon: Building2,
+      enabled: true,
+    },
+    {
+      label: rentalsT("guestsCount", { count: rental.guests }),
+      icon: Users,
+      enabled: true,
+    },
+    { label: rentalsT("kitchen"), icon: Utensils, enabled: rental.hasKitchen },
+    { label: rentalsT("parking"), icon: Car, enabled: rental.hasParking },
+    {
+      label: rentalsT("accessible"),
+      icon: Accessibility,
+      enabled: rental.isAccessible,
+    },
+  ].filter((feature) => feature.enabled);
+
+  return (
+    <article
+      data-selected-rental={isSelected ? "true" : "false"}
+      className={`${cardClass} overflow-hidden ${
+        isSelected
+          ? "border-teal-500 ring-4 ring-teal-500/15 dark:border-teal-300"
+          : "border-slate-200 dark:border-white/10"
+      }`}
+    >
+      <div className="relative h-44">
+        <Image
+          src={rental.image}
+          alt={rental.name}
+          fill
+          sizes="(max-width: 768px) 100vw, 33vw"
+          className="object-cover"
+        />
+        <span className="absolute start-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
+          {rentalsT(rental.type)}
+        </span>
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-bold text-slate-950 dark:text-white">{rental.name}</h3>
+            <p className="mt-1 text-sm text-slate-500">{rental.location}</p>
+            <p className="mt-1 text-sm font-bold text-teal-700 dark:text-teal-300">
+              {rental.distanceFromCenter}
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
+            <Star className="h-4 w-4 fill-amber-500" />
+            {rental.rating}
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <span
+                key={feature.label}
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200"
+              >
+                <Icon className="h-4 w-4 text-teal-500" />
+                {feature.label}
+              </span>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {rental.hasElevator ? <Badge>{rentalsT("elevator")}</Badge> : null}
+          {rental.kidsFriendly ? <Badge>{rentalsT("kidsFriendly")}</Badge> : null}
+          {rental.amenities.slice(0, 3).map((amenity) => (
+            <Badge key={amenity}>{amenity}</Badge>
+          ))}
+        </div>
+
+        <p className="mt-5 text-lg font-bold text-slate-950 dark:text-white">
+          {formatOfferPrice(rental.pricePerNight, rental.currency, locale)}
+          <span className="text-sm font-medium text-slate-500"> / {t("perNight")}</span>
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleSelectRental}
+            data-testid={`select-rental-${rental.id}`}
+            className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+              isSelected
+                ? "bg-teal-600 text-white"
+                : "bg-slate-950 text-white hover:bg-teal-600 dark:bg-teal-500 dark:text-slate-950"
+            }`}
+          >
+            {isSelected ? rentalsT("selected") : rentalsT("addToTrip")}
+          </button>
+          {rental.bookingLink ? (
+            <a
+              href={rental.bookingLink}
+              rel="noreferrer"
+              target="_blank"
+              className="rounded-2xl border border-teal-200 px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-50 dark:border-teal-400/30 dark:text-teal-200 dark:hover:bg-teal-400/10"
+            >
+              {rentalsT("continueBooking")}
+            </a>
+          ) : (
+            <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
+              {rentalsT("noBookingLink")}
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Badge({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 dark:bg-teal-400/10 dark:text-teal-100">
+      {children}
+    </span>
   );
 }
 
@@ -316,6 +508,9 @@ export function TripDealCard({
   trip: TripDeal;
   bestValue?: boolean;
 }) {
+  const { t, locale, price } = useCardText();
+  const toastT = useTranslations("toasts");
+
   async function handleSaveTrip() {
     const localFavorites = saveFavoriteTrip(trip);
 
@@ -333,19 +528,19 @@ export function TripDealCard({
       });
 
       if (response.ok) {
-        toast.success("הטיול נשמר בחשבון שלך.");
+        toast.success(toastT("tripSavedCloud"));
         return;
       }
 
-      toast.success(`הטיול נשמר מקומית. ${localFavorites.length} מסלולים שמורים.`);
+      toast.success(toastT("tripSavedLocal", { count: localFavorites.length }));
     } catch {
-      toast.success(`הטיול נשמר מקומית. ${localFavorites.length} מסלולים שמורים.`);
+      toast.success(toastT("tripSavedLocal", { count: localFavorites.length }));
     }
   }
 
   async function handleTrackPrice() {
     if (trip.flight.price === null) {
-      toast.info("אין מחיר טיסה מאומת למעקב כרגע.");
+      toast.info(toastT("noFlightPrice"));
       return;
     }
 
@@ -365,13 +560,13 @@ export function TripDealCard({
       });
 
       if (!response.ok) {
-        toast.info("כדי לעקוב בענן יש להתחבר ולהגדיר PostgreSQL.");
+        toast.info(toastT("cloudLogin"));
         return;
       }
 
-      toast.success("מעקב מחיר הופעל.");
+      toast.success(toastT("priceTrackingEnabled"));
     } catch {
-      toast.error("לא ניתן להפעיל מעקב מחיר כרגע.");
+      toast.error(toastT("priceTrackingError"));
     }
   }
 
@@ -392,13 +587,13 @@ export function TripDealCard({
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-slate-100 text-sm font-bold text-slate-500 dark:bg-white/10 dark:text-slate-300">
-            תמונה לא זמינה כרגע
+            {t("imageUnavailable")}
           </div>
         )}
         {bestValue ? (
           <span className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-sm font-bold text-white shadow-lg">
             <Sparkles className="h-4 w-4" />
-            משתלם במיוחד
+            {t("bestValue")}
           </span>
         ) : null}
       </div>
@@ -415,7 +610,7 @@ export function TripDealCard({
             type="button"
             onClick={handleSaveTrip}
             className="rounded-full border border-slate-200 p-3 text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:text-white"
-            aria-label="שמירת טיול"
+            aria-label={t("save")}
           >
             <Heart className="h-5 w-5" />
           </button>
@@ -424,22 +619,22 @@ export function TripDealCard({
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <span className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
             <Plane className="h-4 w-4 text-sky-500" />
-            {trip.flight.airline} · {formatOfferPrice(trip.flight.price, trip.flight.currency)}
+            {trip.flight.airline} · {price(trip.flight.price, trip.flight.currency)}
           </span>
           <span className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">
             <Hotel className="h-4 w-4 text-sky-500" />
-            {trip.hotel.name} · {formatOfferPrice(trip.hotel.pricePerNight, trip.hotel.currency)}/לילה
+            {trip.hotel.name} · {price(trip.hotel.pricePerNight, trip.hotel.currency)}/{t("perNight")}
           </span>
         </div>
 
         <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-white/10 dark:text-slate-300">
-          <p className="font-bold text-slate-950 dark:text-white">פירוט תקציב</p>
+          <p className="font-bold text-slate-950 dark:text-white">{t("budgetBreakdown")}</p>
           <div className="mt-2 grid gap-1">
-            <p>טיסה: {formatOfferPrice(trip.budgetBreakdown.flight, trip.currency)} · {trip.budgetBreakdown.labels.flight}</p>
-            <p>מלון: {formatOfferPrice(trip.budgetBreakdown.hotel, trip.currency)} · {trip.budgetBreakdown.labels.hotel}</p>
-            <p>אוכל: {formatOfferPrice(trip.budgetBreakdown.food, trip.currency)} · הערכה בלבד</p>
-            <p>אטרקציות: {formatOfferPrice(trip.budgetBreakdown.activities, trip.currency)} · הערכה בלבד</p>
-            <p>עמלות ומרווח ביטחון: {formatOfferPrice(trip.budgetBreakdown.fees + trip.budgetBreakdown.safetyMargin, trip.currency)} · הערכה בלבד</p>
+            <p>{t("flight")}: {formatOfferPrice(trip.budgetBreakdown.flight, trip.currency, locale)} · {t("estimateOnly")}</p>
+            <p>{t("hotel")}: {formatOfferPrice(trip.budgetBreakdown.hotel, trip.currency, locale)} · {t("estimateOnly")}</p>
+            <p>{t("food")}: {formatOfferPrice(trip.budgetBreakdown.food, trip.currency, locale)} · {t("estimateOnly")}</p>
+            <p>{t("activities")}: {formatOfferPrice(trip.budgetBreakdown.activities, trip.currency, locale)} · {t("estimateOnly")}</p>
+            <p>{t("fees")}: {formatOfferPrice(trip.budgetBreakdown.fees + trip.budgetBreakdown.safetyMargin, trip.currency, locale)} · {t("estimateOnly")}</p>
           </div>
         </div>
 
@@ -457,9 +652,7 @@ export function TripDealCard({
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-2xl font-black text-slate-950 dark:text-white">
-            {trip.estimatedTotal === null
-              ? "לא זמין כרגע"
-              : formatOfferPrice(trip.estimatedTotal, trip.currency)}
+            {price(trip.estimatedTotal, trip.currency)}
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -468,13 +661,13 @@ export function TripDealCard({
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10"
             >
               <Bell className="h-4 w-4" />
-              מעקב מחיר
+              {t("trackPrice")}
             </button>
             <Link
               href={`/trip/${trip.id}`}
               className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950"
             >
-              צפייה בטיול
+              {t("viewTrip")}
             </Link>
           </div>
         </div>

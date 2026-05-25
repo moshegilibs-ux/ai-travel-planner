@@ -15,6 +15,7 @@ export type CustomItineraryInput = {
   days: number;
   budget: string;
   tripType: TripType;
+  locale?: string;
   preferences?: TravelerPreferences;
   selectedFlight?: FlightDeal | null;
 };

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Accessibility,
   CalendarDays,
@@ -12,36 +13,52 @@ import {
   Wallet,
 } from "lucide-react";
 import { airportSuggestions, trendingDestinations } from "@/data/search-suggestions";
+import { addLocaleToPath, AppLocale, isLocale } from "@/lib/i18n";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import type { AccessibilityProfile } from "@/types/travel-marketplace";
 
 const fieldClass =
   "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:focus:ring-sky-500/20";
 
 const accessibilityOptions = [
-  ["wheelchair-accessible", "נגיש לכיסא גלגלים"],
-  ["walker-friendly", "מתאים להליכון"],
-  ["mobility-scooter-friendly", "מתאים לקלנועית"],
-  ["elevator-required", "מעלית חובה"],
-  ["accessible-bathroom", "חדר רחצה נגיש"],
-  ["accessible-toilet", "שירותים נגישים"],
-  ["step-free-access", "ללא מדרגות"],
-  ["short-walking-distances", "מרחקי הליכה קצרים"],
-  ["medical-assistance-nearby", "סיוע רפואי קרוב"],
+  ["wheelchair-accessible", "Wheelchair Accessible"],
+  ["elder-friendly", "Elder Friendly"],
+  ["kids-friendly", "Kids Friendly"],
+  ["walker-friendly", "Walker Friendly"],
+  ["mobility-scooter-friendly", "Mobility Scooter Friendly"],
+  ["elevator-required", "Elevator Required"],
+  ["accessible-bathroom", "Accessible Bathroom"],
+  ["accessible-toilet", "Accessible Toilet"],
+  ["step-free-access", "Step-free Access"],
+  ["short-walking-distances", "Short Walking Distances"],
+  ["medical-assistance-nearby", "Medical Assistance Nearby"],
 ] as const;
 
 const accessibilityProfiles: Array<[AccessibilityProfile, string]> = [
-  ["none", "ללא צורך מיוחד"],
-  ["wheelchair", "משתמש בכיסא גלגלים"],
-  ["walker", "משתמש בהליכון"],
-  ["mobility-scooter", "משתמש בקלנועית"],
-  ["senior", "מטייל מבוגר"],
-  ["young-children", "משפחה עם ילדים קטנים"],
+  ["none", "No special need"],
+  ["wheelchair", "Wheelchair user"],
+  ["walker", "Walker user"],
+  ["mobility-scooter", "Mobility scooter user"],
+  ["senior", "Senior traveler"],
+  ["young-children", "Family with young children"],
 ];
+
+type DestinationSuggestion = {
+  label: string;
+  value: string;
+  source?: string;
+};
 
 export function SearchForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const localeValue = useLocale();
+  const locale: AppLocale = isLocale(localeValue) ? localeValue : "he";
+  const t = useTranslations("searchForm");
   const [from, setFrom] = useState("Tel Aviv");
-  const [destination, setDestination] = useState("Paris");
+  const [destination, setDestination] = useState("");
+  const [destinationSuggestions, setDestinationSuggestions] = useState<
+    DestinationSuggestion[]
+  >([]);
   const [departureDate, setDepartureDate] = useState("2026-06-10");
   const [returnDate, setReturnDate] = useState("2026-06-15");
   const [travelers, setTravelers] = useState(2);
@@ -53,10 +70,46 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
   const [accessibilityProfile, setAccessibilityProfile] =
     useState<AccessibilityProfile>("senior");
   const [accessibilityFilters, setAccessibilityFilters] = useState<string[]>([
+    "wheelchair-accessible",
+    "elder-friendly",
+    "kids-friendly",
     "step-free-access",
     "short-walking-distances",
     "elevator-required",
   ]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadSuggestions() {
+      try {
+        const response = await fetch(
+          `/api/autocomplete?q=${encodeURIComponent(destination)}`,
+          { signal: controller.signal },
+        );
+
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as {
+          destinations?: Array<string | DestinationSuggestion>;
+        };
+        setDestinationSuggestions(
+          (payload.destinations ?? [])
+            .map((item) =>
+              typeof item === "string" ? { label: item, value: item } : item,
+            )
+            .filter((item) => item.value),
+        );
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setDestinationSuggestions([]);
+        }
+      }
+    }
+
+    loadSuggestions();
+    return () => controller.abort();
+  }, [destination]);
 
   function toggleAccessibilityFilter(value: string) {
     setAccessibilityFilters((current) =>
@@ -68,10 +121,13 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const selectedDestination = destination.trim();
+
+    if (!selectedDestination) return;
 
     const params = new URLSearchParams({
       from,
-      destination,
+      destination: selectedDestination,
       departureDate,
       returnDate,
       travelers: String(travelers),
@@ -89,47 +145,58 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
     ) as string[];
     window.localStorage.setItem(
       "trippilot:recent-searches",
-      JSON.stringify([destination, ...recent.filter((item) => item !== destination)].slice(0, 5)),
+      JSON.stringify(
+        [
+          selectedDestination,
+          ...recent.filter((item) => item !== selectedDestination),
+        ].slice(0, 5),
+      ),
     );
 
-    router.push(`/search?${params.toString()}`);
+    router.push(`${addLocaleToPath("/search", locale)}?${params.toString()}`);
   }
 
   return (
     <form
       onSubmit={handleSubmit}
       className={`grid w-full max-w-full gap-3 rounded-3xl border border-white/40 bg-white/95 p-3 shadow-2xl shadow-slate-950/10 backdrop-blur dark:border-white/10 dark:bg-slate-950/90 ${
-        compact ? "lg:grid-cols-[1fr_1fr_1fr_1fr_0.8fr_0.8fr_auto]" : "md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_0.8fr_0.8fr_auto]"
+        compact
+          ? "lg:grid-cols-[1fr_1fr_1fr_1fr_0.8fr_0.8fr_auto]"
+          : "md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_0.8fr_0.8fr_auto]"
       }`}
     >
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        מאיפה
+        {t("from")}
         <span className="relative block">
           <Plane className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            className={`${fieldClass} pr-10`}
+            className={`${fieldClass} pl-12 pr-10`}
             list="airport-suggestions"
             onChange={(event) => setFrom(event.target.value)}
             value={from}
           />
+          <VoiceInputButton onTranscript={setFrom} />
         </span>
       </label>
 
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        יעד
+        {t("destination")}
         <span className="relative block">
           <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            className={`${fieldClass} pr-10`}
+            className={`${fieldClass} pl-12 pr-10`}
             list="destination-suggestions"
             onChange={(event) => setDestination(event.target.value)}
+            placeholder={t("destination")}
+            required
             value={destination}
           />
+          <VoiceInputButton onTranscript={setDestination} />
         </span>
       </label>
 
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        תאריך יציאה
+        {t("departureDate")}
         <span className="relative block">
           <CalendarDays className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -142,7 +209,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       </label>
 
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        תאריך חזרה
+        {t("returnDate")}
         <input
           className={fieldClass}
           onChange={(event) => setReturnDate(event.target.value)}
@@ -152,7 +219,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       </label>
 
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        נוסעים
+        {t("travelers")}
         <span className="relative block">
           <Users className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -166,7 +233,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       </label>
 
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-        תקציב
+        {t("budget")}
         <span className="relative block">
           <Wallet className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -182,18 +249,21 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       {!compact ? (
         <div className="grid gap-3 md:col-span-2 lg:col-span-7 lg:grid-cols-[1fr_auto_auto_auto]">
           <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-            מסלול רב יעדים
+            {t("multiCity")}
             <input
-              className={fieldClass}
+              className={`${fieldClass} pl-12`}
               onChange={(event) => setMultiCity(event.target.value)}
-              placeholder="אופציונלי: רומא, ברצלונה, אמסטרדם"
+              placeholder={t("multiCityPlaceholder")}
               value={multiCity}
             />
+            <span className="relative -mt-12 block h-12">
+              <VoiceInputButton onTranscript={setMultiCity} />
+            </span>
           </label>
           {[
-            ["תאריכים גמישים", flexibleDates, setFlexibleDates],
-            ["החודש הזול ביותר", cheapestMonth, setCheapestMonth],
-            ["שדות תעופה קרובים", nearbyAirports, setNearbyAirports],
+            [t("flexibleDates"), flexibleDates, setFlexibleDates],
+            [t("cheapestMonth"), cheapestMonth, setCheapestMonth],
+            [t("nearbyAirports"), nearbyAirports, setNearbyAirports],
           ].map(([label, checked, setChecked]) => (
             <label
               key={label as string}
@@ -211,7 +281,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
           ))}
           <div className="grid gap-3 md:col-span-2 lg:col-span-4">
             <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-              סוג נגישות
+              {t("accessibilityType")}
               <span className="relative block">
                 <Accessibility className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <select
@@ -253,7 +323,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
         className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
       >
         <Search className="h-4 w-4" />
-        תכננו לי טיול נגיש
+        {t("submit")}
       </button>
       <datalist id="airport-suggestions">
         {airportSuggestions.map((item) => (
@@ -263,8 +333,13 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
         ))}
       </datalist>
       <datalist id="destination-suggestions">
+        {destinationSuggestions.map((item) => (
+          <option key={`${item.source ?? "local"}-${item.value}`} value={item.value}>
+            {item.label}
+          </option>
+        ))}
         {trendingDestinations.map((item) => (
-          <option key={item} value={item} />
+          <option key={`trending-${item}`} value={item} />
         ))}
       </datalist>
     </form>

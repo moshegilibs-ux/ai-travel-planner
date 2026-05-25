@@ -160,7 +160,10 @@ function buildPrompt(input: CustomItineraryInput) {
   return JSON.stringify(
     {
       ...input,
+      responseLanguage: getLanguageName(input.locale),
       instructions: [
+        `All user-facing text must be written in ${getLanguageName(input.locale)}.`,
+        "When the traveler profile suggests family travel, accessibility needs, seniors, children, longer stays, or a need for a kitchen, include a practical lodging recommendation for a short-term apartment or villa. Mention kitchen, elevator, step-free access, parking, room count, and verification needs when relevant.",
         "החזר מסלול בעברית בלבד ובפורמט JSON שתואם בדיוק לסכמה.",
         "כל יום חייב לכלול בוקר, צהריים, ערב, אטרקציות, מסעדה, טיפ יומי ולפחות שלוש עצירות.",
         "כל עצירה חייבת לכלול שם, שעה, תיאור קצר ומפורט, למה מומלץ, שעות פתיחה, מחיר משוער, דירוג, ביקורות, התאמה למטיילים, תמונה, גלריה וקישור מפה.",
@@ -172,6 +175,19 @@ function buildPrompt(input: CustomItineraryInput) {
     null,
     2,
   );
+}
+
+function getLanguageName(locale?: string) {
+  const names: Record<string, string> = {
+    he: "Hebrew",
+    en: "English",
+    ar: "Arabic",
+    ru: "Russian",
+    fr: "French",
+    es: "Spanish",
+  };
+
+  return names[locale || ""] || "Hebrew";
 }
 
 function withSafePlaceAssets(place: ItineraryPlace, index: number): ItineraryPlace {
