@@ -86,6 +86,7 @@ export const mobilityOptions = [
   { value: "full", label: "ניידות מלאה" },
   { value: "limited_walking", label: "הליכה מוגבלת" },
   { value: "wheelchair", label: "משתמש/ת בכיסא גלגלים" },
+  { value: "handbike", label: "משתמש/ת בהנדבייק" },
   { value: "senior_friendly", label: "קצב ידידותי לגיל השלישי" },
 ] as const;
 

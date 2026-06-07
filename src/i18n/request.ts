@@ -1,25 +1,16 @@
 import { getRequestConfig } from "next-intl/server";
-import { cookies, headers } from "next/headers";
-import {
-  defaultLocale,
-  isLocale,
-  localeCookieName,
-  messagesByLocale,
-} from "@/lib/i18n";
+import { cookies } from "next/headers";
+import he from "../../messages/he.json";
+import en from "../../messages/en.json";
+
+const messages = { he, en };
 
 export default getRequestConfig(async () => {
-  const requestHeaders = await headers();
   const cookieStore = await cookies();
-  const headerLocale = requestHeaders.get("x-trippilot-locale");
-  const cookieLocale = cookieStore.get(localeCookieName)?.value;
-  const locale = isLocale(headerLocale)
-    ? headerLocale
-    : isLocale(cookieLocale)
-      ? cookieLocale
-      : defaultLocale;
+  const locale = cookieStore.get("NEXT_LOCALE")?.value === "en" ? "en" : "he";
 
   return {
     locale,
-    messages: messagesByLocale[locale],
+    messages: messages[locale],
   };
 });

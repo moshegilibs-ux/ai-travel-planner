@@ -30,8 +30,8 @@ export default async function SearchPage({
     destination: getParam(params.destination) || "Barcelona",
     departureDate: getParam(params.departureDate) || "2026-06-10",
     returnDate: getParam(params.returnDate) || "2026-06-15",
-    travelers: Number(getParam(params.travelers) || 2),
-    budget: Number(getParam(params.budget) || 1600),
+    travelers: toFiniteNumber(getParam(params.travelers), 2, 1),
+    budget: toFiniteNumber(getParam(params.budget), 1600, 0),
     accessibilityProfile:
       (getParam(params.accessibilityProfile) as SearchParams["accessibilityProfile"]) ||
       "senior",
@@ -80,4 +80,14 @@ export default async function SearchPage({
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+// Coerce a query value to a finite number. Non-numeric input (e.g. a budget
+// "level" label like "Comfort") falls back to a safe default instead of NaN.
+function toFiniteNumber(value: string | undefined, fallback: number, min = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(min, parsed);
 }

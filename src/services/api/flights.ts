@@ -6,10 +6,8 @@ import {
   FlightTimeFilter,
   filterAndSortFlights,
   formatFlightDuration,
-  generateMockFlights,
   getAvailableAirlines,
 } from "@/lib/mock-flights";
-import { isPublicMockMode, logPublicMockMode } from "@/lib/public-env";
 
 export type {
   FlightDeal,
@@ -27,15 +25,9 @@ export type FlightSearchResult = {
 };
 
 export async function searchFlights(input: FlightSearchInput): Promise<FlightSearchResult> {
-  if (isPublicMockMode()) {
-    logPublicMockMode("Flight search is using mock flights because NEXT_PUBLIC_USE_MOCK_DATA is not false.");
-    return {
-      flights: generateMockFlights(input),
-      source: "mock",
-      warning: "מצב פיתוח פעיל. מחירי הטיסות אינם נתוני ספק מאומתים.",
-    };
-  }
-
+  // Real flights come only from the Amadeus-backed API route. No mock fallback —
+  // when the provider is unavailable the route returns an explicit unavailable
+  // state and we surface it as-is (never fabricated prices).
   try {
     const response = await fetch("/api/flights/search", {
       method: "POST",

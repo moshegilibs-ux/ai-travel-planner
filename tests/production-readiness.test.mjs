@@ -9,7 +9,11 @@ function read(path) {
 test("flight cards do not render a duplicated or unsafe flight price expression", () => {
   const source = read("src/components/deal-cards.tsx");
   assert.equal(source.includes("${Math.round(flight.price)}"), false);
-  assert.equal(source.includes("formatOfferPrice(flight.price, flight.currency)"), true);
+  // After the multilingual refactor the price is rendered through a locale-aware
+  // helper (price -> formatOfferPrice(value, currency, locale)) rather than a raw
+  // unscoped call. Verify both the call site and the localized formatter.
+  assert.match(source, /price\(flight\.price, flight\.currency\)/);
+  assert.match(source, /formatOfferPrice\(value, currency, locale/);
 });
 
 test("select flight button is wired to parent state and is not a dead click", () => {
@@ -19,7 +23,8 @@ test("select flight button is wired to parent state and is not a dead click", ()
   assert.match(card, /onSelect\?: \(flight: FlightDeal\) => void/);
   assert.match(card, /function handleSelectFlight\(\)/);
   assert.match(card, /onSelect\?\.\(flight\)/);
-  assert.match(card, /בחר טיסה/);
+  // Label is localized via next-intl; the Hebrew value lives in messages/he.json.
+  assert.match(card, /t\("selectFlight"\)/);
   assert.match(results, /const \[selectedFlight, setSelectedFlight\]/);
   assert.match(results, /onSelect=\{setSelectedFlight\}/);
 });
@@ -38,7 +43,8 @@ test("missing bookingLink does not block selected offer continuation", () => {
   const card = read("src/components/deal-cards.tsx");
   const results = read("src/components/search-results-view.tsx");
 
-  assert.match(card, /הצעה ללא קישור הזמנה/);
+  // "No booking link" fallback is localized via next-intl; Hebrew is in messages/he.json.
+  assert.match(card, /t\("noBookingLink"\)/);
   assert.match(results, /המשך לבניית מסלול/);
 });
 
@@ -136,8 +142,8 @@ test("fx widget renders converted amount and source currency", () => {
 
 test("real search provider labels unavailable data instead of inventing prices", () => {
   const source = read("src/lib/amadeus.ts");
-  assert.match(source, /טיסות לא זמינות כרגע/);
-  assert.match(source, /מלונות לא זמינים כרגע/);
+  assert.match(source, /טיסות אמיתיות לא זמינות כרגע/);
+  assert.match(source, /מלונות אמיתיים לא זמינים כרגע/);
   assert.match(source, /flights:\s*\[\]/);
   assert.match(source, /hotels:\s*\[\]/);
 });
@@ -146,8 +152,9 @@ test("production unavailable copy does not say showing mock data", () => {
   const source = read("src/lib/amadeus.ts");
   assert.equal(source.includes("Showing mock flight data"), false);
   assert.equal(source.includes("Showing mock hotel data"), false);
-  assert.match(source, /טיסות לא זמינות כרגע/);
-  assert.match(source, /מלונות לא זמינים כרגע/);
+  assert.equal(source.includes("Development mock"), false);
+  assert.match(source, /טיסות אמיתיות לא זמינות כרגע/);
+  assert.match(source, /מלונות אמיתיים לא זמינים כרגע/);
 });
 
 test("results page has mobile-first drawer and sticky CTA layout", () => {

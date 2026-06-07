@@ -46,4 +46,7 @@ dev-server.err.log
 *.tsbuildinfo
 next-env.d.ts
 
+# local agent config
+/.claude/
+
 .vercel

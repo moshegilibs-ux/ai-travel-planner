@@ -16,6 +16,10 @@ import { airportSuggestions, trendingDestinations } from "@/data/search-suggesti
 import { addLocaleToPath, AppLocale, isLocale } from "@/lib/i18n";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import type { AccessibilityProfile } from "@/types/travel-marketplace";
+import {
+  deriveSearchPrefill,
+  loadAccessibilityProfile,
+} from "@/lib/accessibility-profile";
 
 const fieldClass =
   "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:focus:ring-sky-500/20";
@@ -38,6 +42,7 @@ const accessibilityProfiles: Array<[AccessibilityProfile, string]> = [
   ["none", "No special need"],
   ["wheelchair", "Wheelchair user"],
   ["walker", "Walker user"],
+  ["handbike", "Handbike user"],
   ["mobility-scooter", "Mobility scooter user"],
   ["senior", "Senior traveler"],
   ["young-children", "Family with young children"],
@@ -77,6 +82,16 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
     "short-walking-distances",
     "elevator-required",
   ]);
+
+  useEffect(() => {
+    const profile = loadAccessibilityProfile();
+    if (!profile) return;
+    const prefill = deriveSearchPrefill(profile);
+    setAccessibilityProfile(prefill.accessibilityProfile);
+    if (prefill.accessibilityFilters.length) {
+      setAccessibilityFilters(prefill.accessibilityFilters);
+    }
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();

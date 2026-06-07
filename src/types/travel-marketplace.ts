@@ -2,6 +2,7 @@ export type AccessibilityProfile =
   | "none"
   | "wheelchair"
   | "walker"
+  | "handbike"
   | "mobility-scooter"
   | "senior"
   | "young-children";

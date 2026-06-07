@@ -1,11 +1,13 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useLocale } from "next-intl";
 import {
+  Accessibility,
   CalendarDays,
+  Clock,
   Download,
   ExternalLink,
   FolderOpen,
@@ -20,16 +22,20 @@ import {
   Sparkles,
   Trash2,
   Utensils,
+  Wallet,
 } from "lucide-react";
 import {
   CustomItineraryInput,
   CustomItineraryDay,
   ItineraryPlace,
+  MultiDestinationTripPlan,
   ReplacementPreference,
   TravelerPreferences,
   TripType,
 } from "@/lib/generate-itinerary";
 import { FlightsSection } from "@/components/flights-section";
+import { HotelsSection } from "@/components/hotels-section";
+import type { HotelDeal } from "@/types/travel-marketplace";
 import { generateItinerary } from "@/services/api/itinerary";
 import { getPlaces, replacePlace } from "@/services/api/places";
 import type { FlightDeal } from "@/services/api/flights";
@@ -50,6 +56,7 @@ import {
 } from "@/lib/saved-itineraries";
 import { readMyTrip, writeMyTrip } from "@/lib/my-trip";
 import { VoiceInputButton } from "@/components/voice-input-button";
+import { getUiTranslations } from "@/lib/ui-translations";
 
 const tripTypes: TripType[] = [
   "רומנטי",
@@ -74,8 +81,99 @@ const replacementOptions: Array<[ReplacementPreference, string]> = [
   ["food", "יותר אוכל מקומי"],
 ];
 
+type AccessibilitySelections = {
+  wheelchairUser: boolean;
+  limitedWalking: boolean;
+  stepFreeHotels: boolean;
+  accessibleTransport: boolean;
+  relaxedPace: boolean;
+};
+
+/**
+ * Synthesizes transportation tips, accessibility notes and rest-break guidance
+ * from the traveler's accessibility selections so every day — for any
+ * destination — shows usable, honest planning guidance. Accessibility is never
+ * asserted as verified: each note set ends with the unverified caveat.
+ */
+function dayPlanningGuidance(a: AccessibilitySelections, isHebrew: boolean) {
+  const transportation: string[] = [];
+  const notes: string[] = [];
+  const restBreaks: string[] = [];
+
+  if (a.accessibleTransport || a.wheelchairUser) {
+    transportation.push(
+      isHebrew
+        ? "העדיפו מונית נגישה או רכב פרטי דלת-לדלת לקטעים הארוכים."
+        : "Prefer an accessible taxi or door-to-door private car for longer legs.",
+    );
+  } else {
+    transportation.push(
+      isHebrew
+        ? "תחבורה ציבורית מקומית למרחקים קצרים, מונית לקטעים הארוכים."
+        : "Local public transport for short hops, a taxi for longer legs.",
+    );
+  }
+  if (a.limitedWalking) {
+    transportation.push(
+      isHebrew
+        ? "תכננו ירידה/איסוף קרוב ככל האפשר לכל אטרקציה."
+        : "Plan drop-off/pick-up as close to each attraction as possible.",
+    );
+  }
+
+  if (a.wheelchairUser) {
+    notes.push(
+      isHebrew
+        ? "בדקו כניסה ללא מדרגות, מעלית ושירותים נגישים בכל אתר."
+        : "Check step-free entrance, elevator and accessible restrooms at each site.",
+    );
+  }
+  if (a.stepFreeHotels) {
+    notes.push(
+      isHebrew
+        ? "ודאו מלון עם כניסה ללא מדרגות ומעלית."
+        : "Confirm a hotel with a step-free entrance and an elevator.",
+    );
+  }
+  if (a.limitedWalking) {
+    notes.push(
+      isHebrew
+        ? "שמרו על מרחקי הליכה קצרים והעדיפו אזורים מרוכזים."
+        : "Keep walking distances short and favor compact areas.",
+    );
+  }
+  notes.push(
+    isHebrew
+      ? "נגישות לא מאומתת — מומלץ לבדוק מול המקום."
+      : "Accessibility not verified — we recommend checking with the venue.",
+  );
+
+  const higherSupport = a.relaxedPace || a.limitedWalking || a.wheelchairUser;
+  if (higherSupport) {
+    restBreaks.push(
+      isHebrew
+        ? "שלבו 2–3 הפסקות מנוחה ביום, כל 60–90 דקות, עם ישיבה מוצלת."
+        : "Build in 2–3 rest breaks per day, every 60–90 minutes, with shaded seating.",
+    );
+    restBreaks.push(
+      isHebrew
+        ? "ודאו נקודת מנוחה ושירותים נגישים ליד כל אטרקציה מרכזית."
+        : "Ensure a rest point and accessible restrooms near each main attraction.",
+    );
+  } else {
+    restBreaks.push(
+      isHebrew
+        ? "הפסקת צהריים ארוכה ומנוחה קצרה אחר הצהריים."
+        : "One longer lunch break and a short afternoon rest.",
+    );
+  }
+
+  return { transportation, notes, restBreaks };
+}
+
 export function CustomItinerarySection() {
   const locale = useLocale();
+  const ui = getUiTranslations(locale).results;
   const [destination, setDestination] = useState("");
   const [days, setDays] = useState(3);
   const [budget, setBudget] = useState("");
@@ -89,8 +187,31 @@ export function CustomItinerarySection() {
     "תרבות",
     "אוכל",
   ]);
+  const [accessibility, setAccessibility] = useState({
+    wheelchairUser: false,
+    limitedWalking: false,
+    stepFreeHotels: false,
+    accessibleTransport: false,
+    relaxedPace: false,
+  });
+  const dayGuidance = dayPlanningGuidance(accessibility, locale !== "en");
+  // Derive default trip dates so the flight/hotel search can be prefilled.
+  // The planner captures a day count, not calendar dates, so we default the
+  // departure ~5 weeks out and the return to departure + the trip length.
+  const tripDepartureDate = (() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 35);
+    return date.toISOString().slice(0, 10);
+  })();
+  const tripReturnDate = (() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 35 + Math.max(1, days));
+    return date.toISOString().slice(0, 10);
+  })();
   const [expandedPlaceId, setExpandedPlaceId] = useState<string | null>(null);
   const [selectedFlight, setSelectedFlight] = useState<FlightDeal | null>(null);
+  const [selectedHotel, setSelectedHotel] = useState<HotelDeal | null>(null);
+  const [selectedRouteOptionId, setSelectedRouteOptionId] = useState("classic");
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -128,7 +249,7 @@ export function CustomItinerarySection() {
     return () => window.clearTimeout(timeoutId);
   }, [currentUser]);
 
-function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!destination.trim() || !budget.trim() || days < 1) {
@@ -142,18 +263,26 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     setIsLoading(true);
 
     window.setTimeout(async () => {
+      const hasAccessibilityNeeds = Object.values(accessibility).some(Boolean);
+      const routeOptionId =
+        hasAccessibilityNeeds && selectedRouteOptionId === "classic"
+          ? "accessible-relaxed"
+          : selectedRouteOptionId;
+      setSelectedRouteOptionId(routeOptionId);
       const input = {
         destination: destination.trim(),
         days,
         budget: budget.trim(),
         tripType,
         locale,
+        routeOptionId,
         selectedFlight,
         preferences: {
           environment,
           pace,
           budgetStyle,
           interests,
+          accessibility,
         },
       };
       const result = await generateItinerary({
@@ -169,12 +298,33 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     }, 550);
   }
 
+  async function handleSelectRouteOption(routeOptionId: string) {
+    setSelectedRouteOptionId(routeOptionId);
+
+    if (!currentInput) return;
+
+    const nextInput = {
+      ...currentInput,
+      routeOptionId,
+      preferences: {
+        environment: currentInput.preferences?.environment ?? environment,
+        pace: currentInput.preferences?.pace ?? pace,
+        budgetStyle: currentInput.preferences?.budgetStyle ?? budgetStyle,
+        interests: currentInput.preferences?.interests ?? interests,
+        accessibility,
+      },
+    };
+    const result = await generateItinerary(nextInput);
+    setCurrentInput(nextInput);
+    setItinerary(result.itinerary);
+  }
+
   async function handleSaveItinerary() {
     if (!currentInput || itinerary.length === 0) {
       return;
     }
 
-    const savedItinerary = createSavedItinerary(currentInput, itinerary);
+    const savedItinerary = createSavedItinerary(currentInput, itinerary, selectedHotel);
 
     if (savedItineraries.some((item) => item.id === savedItinerary.id)) {
       setSaveMessage("המסלול הזה כבר נשמר.");
@@ -210,6 +360,7 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     setBudgetStyle(savedItinerary.preferences?.budgetStyle ?? "מאוזן");
     setInterests(savedItinerary.preferences?.interests ?? ["תרבות", "אוכל"]);
     setSelectedFlight(savedItinerary.selectedFlight ?? null);
+    setSelectedHotel(savedItinerary.selectedHotel ?? null);
     setCurrentInput({
       destination: savedItinerary.destination,
       days: savedItinerary.days,
@@ -469,6 +620,37 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
             </div>
           </div>
 
+          <div className="mt-5 rounded-xl border border-sky-100 bg-white p-4">
+            <h3 className="font-bold text-slate-950">{ui.accessibilityNeeds}</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["wheelchairUser", ui.accessibilityOptions.wheelchairUser],
+                ["limitedWalking", ui.accessibilityOptions.limitedWalking],
+                ["stepFreeHotels", ui.accessibilityOptions.stepFreeHotels],
+                ["accessibleTransport", ui.accessibilityOptions.accessibleTransport],
+                ["relaxedPace", ui.accessibilityOptions.relaxedPace],
+              ].map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex min-h-12 items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700"
+                >
+                  <input
+                    checked={accessibility[key as keyof typeof accessibility]}
+                    disabled={isLoading}
+                    onChange={(event) =>
+                      setAccessibility((current) => ({
+                        ...current,
+                        [key]: event.target.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
           {error ? (
             <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
               {error}
@@ -491,6 +673,9 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 
         <FlightsSection
           selectedFlight={selectedFlight}
+          destination={destination}
+          departureDate={tripDepartureDate}
+          returnDate={tripReturnDate}
           onSelectFlight={async (flight) => {
             setSelectedFlight(flight);
             if (currentInput) {
@@ -504,6 +689,65 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
             );
           }}
         />
+
+        <HotelsSection
+          destination={destination}
+          checkInDate={tripDepartureDate}
+          checkOutDate={tripReturnDate}
+          selectedHotel={selectedHotel}
+          onSelectHotel={(hotel) => {
+            setSelectedHotel(hotel);
+            setSaveMessage(`המלון ${hotel.name} נוסף לסיכום הטיול.`);
+          }}
+        />
+
+        {selectedFlight || selectedHotel ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+            <h3 className="flex items-center gap-2 text-xl font-black text-slate-950">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              {ui.tripSummaryTitle}
+            </h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
+                <p className="text-sm font-bold text-sky-700">
+                  {ui.selectedFlightLabel}
+                </p>
+                {selectedFlight ? (
+                  <p className="mt-1 leading-7 text-sky-950">
+                    {selectedFlight.airline} {selectedFlight.flightNumber} ·{" "}
+                    {selectedFlight.departureTime}-{selectedFlight.arrivalTime} · $
+                    {selectedFlight.estimatedPrice}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-sky-900">{ui.noFlightSelected}</p>
+                )}
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p className="text-sm font-bold text-amber-700">
+                  {ui.selectedHotelLabel}
+                </p>
+                {selectedHotel ? (
+                  <p className="mt-1 leading-7 text-amber-950">
+                    {selectedHotel.name} · {selectedHotel.location} ·{" "}
+                    {selectedHotel.pricePerNight !== null
+                      ? `$${selectedHotel.pricePerNight}/${ui.perNight}`
+                      : ui.estimateOnly}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-amber-900">{ui.noHotelSelected}</p>
+                )}
+              </div>
+            </div>
+            <p className="mt-4 text-lg font-black text-slate-950">
+              {ui.combinedEstimate}: ~$
+              {(selectedFlight?.estimatedPrice ?? 0) +
+                (selectedHotel?.pricePerNight ?? 0) * Math.max(1, days - 1)}
+              <span className="ms-2 align-middle text-xs font-bold text-slate-500">
+                {ui.estimateOnly}
+              </span>
+            </p>
+          </div>
+        ) : null}
 
         <div
           id="saved-itineraries"
@@ -617,6 +861,14 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
               ) : null}
             </div>
 
+            {itinerary[0]?.tripPlan ? (
+              <TripPlanOverview
+                onSelectRoute={handleSelectRouteOption}
+                plan={itinerary[0].tripPlan}
+                selectedRouteId={selectedRouteOptionId}
+              />
+            ) : null}
+
             {itinerary.map((day, index) => (
               <motion.article
                 key={day.day}
@@ -637,6 +889,57 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
                     מסלול יומי
                   </span>
                 </div>
+
+                {day.destinationName ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                    <InfoTile label={ui.destination} value={day.destinationName} />
+                    <InfoTile label={ui.region} value={day.region || "-"} />
+                    <InfoTile
+                      label={ui.night}
+                      value={`${day.nightNumber || 1}/${day.nightsInDestination || 1}`}
+                    />
+                    <InfoTile
+                      label={ui.hotelBudget}
+                      value={`$${day.hotelBudgetPerNight || 0}/${ui.perNight} · ${ui.estimateOnly}`}
+                    />
+                  </div>
+                ) : null}
+
+                {day.areaRecommendations?.length ? (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="flex items-center gap-2 font-bold text-slate-950">
+                      <MapPin className="h-4 w-4 text-emerald-700" />
+                      {ui.recommendedAreas} {day.destinationName}
+                    </h4>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {day.areaRecommendations.map((area) => (
+                        <span
+                          key={area}
+                          className="rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-700"
+                        >
+                          {area}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {day.routeTransfer ? (
+                  <div className="mt-5 rounded-xl border border-amber-100 bg-amber-50 p-4">
+                    <h4 className="flex items-center gap-2 font-bold text-amber-950">
+                      <Route className="h-4 w-4 text-amber-700" />
+                      {ui.interTransfer}
+                    </h4>
+                    <p className="mt-2 leading-7 text-amber-900">
+                      {day.routeTransfer.from} to {day.routeTransfer.to} ·{" "}
+                      {day.routeTransfer.mode} · {day.routeTransfer.duration} · $
+                      {day.routeTransfer.estimatedCostPerPerson}/{ui.person} · {ui.estimateOnly}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-amber-800">
+                      {day.routeTransfer.notes}
+                    </p>
+                  </div>
+                ) : null}
 
                 {day.flightNotes?.length ? (
                   <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50 p-4">
@@ -665,6 +968,61 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
                     <h4 className="font-bold text-slate-950">ערב</h4>
                     <p className="mt-2 leading-7 text-slate-600">{day.evening}</p>
                   </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
+                    <h4 className="flex items-center gap-2 font-bold text-sky-950">
+                      <Route className="h-4 w-4 text-sky-700" />
+                      {ui.transportationTips}
+                    </h4>
+                    <ul className="mt-2 space-y-1 text-sm leading-6 text-sky-900">
+                      {[...(day.transportNotes ?? []), ...dayGuidance.transportation].map(
+                        (tip) => (
+                          <li key={tip}>• {tip}</li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                    <h4 className="flex items-center gap-2 font-bold text-emerald-950">
+                      <Accessibility className="h-4 w-4 text-emerald-700" />
+                      {ui.accessibilityNotes}
+                    </h4>
+                    <ul className="mt-2 space-y-1 text-sm leading-6 text-emerald-900">
+                      {[...(day.dailyAccessibilityNotes ?? []), ...dayGuidance.notes].map(
+                        (note) => (
+                          <li key={note}>• {note}</li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                    <h4 className="flex items-center gap-2 font-bold text-amber-950">
+                      <Clock className="h-4 w-4 text-amber-700" />
+                      {ui.restBreaks}
+                    </h4>
+                    <ul className="mt-2 space-y-1 text-sm leading-6 text-amber-900">
+                      {dayGuidance.restBreaks.map((rest) => (
+                        <li key={rest}>• {rest}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {typeof day.estimatedDailyCost === "number" &&
+                  day.estimatedDailyCost > 0 ? (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h4 className="flex items-center gap-2 font-bold text-slate-950">
+                        <Wallet className="h-4 w-4 text-slate-700" />
+                        {ui.estimatedDailyCost}
+                      </h4>
+                      <p className="mt-2 text-2xl font-black text-slate-950">
+                        ~${day.estimatedDailyCost}
+                        <span className="ms-2 align-middle text-xs font-bold text-slate-500">
+                          {ui.estimateOnly}
+                        </span>
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -719,6 +1077,222 @@ function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
   );
 }
 
+function TripPlanOverview({
+  onSelectRoute,
+  plan,
+  selectedRouteId,
+}: {
+  onSelectRoute: (routeOptionId: string) => void;
+  plan: MultiDestinationTripPlan;
+  selectedRouteId: string;
+}) {
+  const locale = useLocale();
+  const ui = getUiTranslations(locale).results;
+
+  return (
+    <section className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-bold text-emerald-700">{ui.multiRoute}</p>
+          <h3 className="mt-1 text-2xl font-black text-slate-950">{plan.countryOrRoute}</h3>
+          <p className="mt-2 max-w-3xl leading-7 text-slate-600">{plan.routeLogic}</p>
+        </div>
+        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-left">
+          <p className="text-xs font-bold text-emerald-700">{ui.totalBudget}</p>
+          <p className="text-2xl font-black text-emerald-950">
+            {formatTripMoney(plan.budget.total, plan.budget.currency)}
+          </p>
+          <p className="text-xs text-emerald-800">{plan.budget.travelers} {ui.travelers}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50 p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-bold text-sky-700">{ui.chooseOption}</p>
+            <h4 className="text-xl font-black text-slate-950">{ui.routeOptions}</h4>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-slate-600">
+            {ui.disclaimer}
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {plan.routeOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onSelectRoute(option.id)}
+              className={`rounded-xl border p-4 text-left transition ${
+                selectedRouteId === option.id
+                  ? "border-emerald-400 bg-white shadow-sm"
+                  : "border-slate-200 bg-white/70 hover:border-sky-300"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h5 className="text-lg font-black text-slate-950">{option.name}</h5>
+                  <p className="text-sm font-bold text-slate-500">{option.durationLabel}</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                  {formatTripMoney(option.budget.total, option.budget.currency)}
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{option.whyThisRouteFits}</p>
+              {option.accessibilitySummary ? (
+                <p className="mt-2 rounded-lg bg-emerald-50 p-2 text-xs font-bold leading-5 text-emerald-900">
+                  {option.accessibilitySummary}
+                </p>
+              ) : null}
+              <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                <RouteOptionLine
+                  label={ui.split}
+                  value={option.destinations
+                    .map((destination) => `${destination.name} ${destination.nights} ${ui.nights}`)
+                    .join(" · ")}
+                />
+                <RouteOptionLine
+                  label={ui.flightEstimate}
+                  value={formatTripMoney(option.budget.internationalFlights, option.budget.currency)}
+                />
+                <RouteOptionLine
+                  label={ui.hotels}
+                  value={formatTripMoney(option.budget.hotels, option.budget.currency)}
+                />
+                <RouteOptionLine
+                  label={ui.internalTransport}
+                  value={formatTripMoney(option.budget.domesticTransportation, option.budget.currency)}
+                />
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        {plan.destinations.map((destination) => (
+          <article
+            key={destination.name}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-lg font-black text-slate-950">{destination.name}</h4>
+                <p className="text-sm font-bold text-slate-500">{destination.region}</p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-slate-700">
+                {destination.nights} {ui.nights}
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{destination.whyHere}</p>
+            <div className="mt-3 grid gap-2 text-sm">
+              <InfoTile label={ui.hotelArea} value={destination.hotelArea} />
+              <InfoTile
+                label={ui.hotelEstimate}
+                value={`${formatTripMoney(destination.hotelBudgetPerNight, plan.budget.currency)}/${ui.perNight} · ${formatTripMoney(destination.hotelBudgetTotal, plan.budget.currency)} ${ui.total}`}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {destination.areaRecommendations.map((area) => (
+                <span key={area} className="rounded-full bg-white px-3 py-1 text-xs font-bold">
+                  {area}
+                </span>
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg bg-white p-3">
+              <p className="text-xs font-bold text-slate-500">{ui.accessibilityNotes}</p>
+              <ul className="mt-2 space-y-1 text-xs leading-5 text-slate-600">
+                {destination.accessibilityNotes.map((note) => (
+                  <li key={note}>• {note}</li>
+                ))}
+              </ul>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 p-4">
+          <h4 className="flex items-center gap-2 font-black text-slate-950">
+            <Plane className="h-4 w-4 text-sky-700" />
+            {ui.transportBetween}
+          </h4>
+          <div className="mt-3 grid gap-3">
+            {plan.transportation.map((leg) => (
+              <div key={`${leg.from}-${leg.to}`} className="rounded-lg bg-slate-50 p-3">
+                <p className="font-black text-slate-950">
+                  {leg.from} {ui.to} {leg.to}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {leg.mode} · {leg.duration} ·{" "}
+                  {formatTripMoney(leg.estimatedCostPerPerson, plan.budget.currency)}/{ui.person} ·{" "}
+                  {formatTripMoney(leg.estimatedTotalCost, plan.budget.currency)} {ui.total}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{leg.notes}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 p-4">
+          <h4 className="font-black text-slate-950">{ui.budgetBreakdown}</h4>
+          <div className="mt-3 grid gap-2 text-sm">
+            <BudgetLine label={ui.internationalFlights} value={plan.budget.internationalFlights} currency={plan.budget.currency} />
+            <BudgetLine label={ui.domesticTransport} value={plan.budget.domesticTransportation} currency={plan.budget.currency} />
+            <BudgetLine label={ui.hotels} value={plan.budget.hotels} currency={plan.budget.currency} />
+            <BudgetLine label={ui.food} value={plan.budget.food} currency={plan.budget.currency} />
+            <BudgetLine label={ui.activities} value={plan.budget.activities} currency={plan.budget.currency} />
+            <BudgetLine label={ui.localTransport} value={plan.budget.localTransport} currency={plan.budget.currency} />
+            <BudgetLine label={ui.buffer} value={plan.budget.buffer} currency={plan.budget.currency} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-3">
+      <p className="text-xs font-bold text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function RouteOptionLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2">
+      <span className="block font-bold text-slate-500">{label}</span>
+      <span className="mt-1 block font-black text-slate-950">{value}</span>
+    </div>
+  );
+}
+
+function BudgetLine({
+  currency,
+  label,
+  value,
+}: {
+  currency: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+      <span className="text-slate-600">{label}</span>
+      <span className="font-black text-slate-950">{formatTripMoney(value, currency)}</span>
+    </div>
+  );
+}
+
+function formatTripMoney(value: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 function PlaceRecommendationCard({
   place,
   expanded,
@@ -734,13 +1308,13 @@ function PlaceRecommendationCard({
 }) {
   return (
     <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="relative h-44">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
         <Image
           src={place.image}
           alt={place.name}
           fill
           sizes="(max-width: 768px) 100vw, 33vw"
-          className="object-cover"
+          className="h-full w-full object-cover object-center"
         />
         <span className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-900 shadow">
           {place.timeSlot} · {place.suggestedTime}

@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
         outboundUrl: payload.outboundUrl,
         source: payload.source,
         tripId: payload.tripId,
-        metadata: (payload.metadata ?? {}) as Prisma.InputJsonValue,
+        metadata: payload.metadata ?? {},
       },
     });
   }

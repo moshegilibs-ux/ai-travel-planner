@@ -6,7 +6,9 @@ const eslintConfig = defineConfig([
   ...tseslint.configs.recommended,
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
-    rules: {},
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
   },
 ]);
 

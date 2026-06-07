@@ -37,12 +37,18 @@ const cardClass =
   "rounded-3xl border bg-white shadow-sm transition dark:bg-slate-900";
 
 export function formatOfferPrice(value: number | null, currency: string, locale = "he") {
-  if (value === null) return "";
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
+  // Never render a non-finite value (null / NaN / Infinity) as a price.
+  if (value === null || !Number.isFinite(value)) return "";
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: currency || "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    // Guard against an invalid/empty currency code throwing in Intl.
+    return `${Math.round(value)} ${currency || ""}`.trim();
+  }
 }
 
 function formatLastChecked(value: string, locale: string) {
@@ -60,7 +66,9 @@ function useCardText() {
     t,
     locale,
     price: (value: number | null, currency: string) =>
-      value === null ? t("notAvailable") : formatOfferPrice(value, currency, locale),
+      value === null || !Number.isFinite(value)
+        ? t("notAvailable")
+        : formatOfferPrice(value, currency, locale),
     availability: (status: FlightDeal["availabilityStatus"]) => {
       if (status === "available") return t("available");
       if (status === "unavailable") return t("unavailable");

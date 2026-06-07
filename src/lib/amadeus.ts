@@ -1,11 +1,8 @@
-import mockResults from "@/data/mock-travel-results.json";
 import { fetchWithRetry } from "@/lib/external-api";
 import {
   getAmadeusBaseUrl,
   getAmadeusCredentials,
   hasAmadeus,
-  isMockMode,
-  logMockMode,
 } from "@/lib/env";
 import { buildBudgetBreakdown, validateBudgetBreakdown } from "@/lib/budget";
 import type {
@@ -17,10 +14,11 @@ import type {
   TripDeal,
 } from "@/types/travel-marketplace";
 
-type MockResults = {
-  flights: FlightDeal[];
-  hotels: HotelDeal[];
-};
+// Hebrew "real provider not configured" copy. Mock/demo prices are never shown
+// as bookable results — when a real provider is missing we return an empty,
+// explicitly-unavailable response instead of fabricated offers.
+const flightsUnavailableMessage = "טיסות אמיתיות לא זמינות כרגע";
+const hotelsUnavailableMessage = "מלונות אמיתיים לא זמינים כרגע";
 
 type AmadeusTokenResponse = {
   access_token: string;
@@ -92,9 +90,8 @@ type AmadeusHotelOffersResponse = {
   data?: AmadeusHotelOffer[];
 };
 
-type ProviderMode = "amadeus" | "mock" | "unavailable";
+type ProviderMode = "amadeus" | "unavailable";
 
-const data = mockResults as MockResults;
 const amadeusBaseUrl = getAmadeusBaseUrl();
 
 let cachedToken: {
@@ -215,9 +212,7 @@ export async function searchTravel(
     mode:
       flightResult.mode === "amadeus" || hotelResult.mode === "amadeus"
         ? "amadeus"
-        : flightResult.mode === "mock" || hotelResult.mode === "mock"
-          ? "mock"
-          : "unavailable",
+        : "unavailable",
     warning: [flightResult.warning, hotelResult.warning].filter(Boolean).join(" "),
     warnings: {
       flights: flightResult.warning,
@@ -235,20 +230,13 @@ async function searchFlightsWithMode(params: SearchParams): Promise<{
   mode: ProviderMode;
   warning?: string;
 }> {
-  if (isMockMode()) {
-    logMockMode("Flight search is using development mock data because mock mode is enabled.");
-    return {
-      flights: getMockFlights(params),
-      mode: "mock",
-      warning: "מצב פיתוח פעיל. מחירי הטיסות אינם נתוני ספק מאומתים.",
-    };
-  }
-
+  // Real flights come only from Amadeus. With no configured provider we never
+  // fabricate offers — we surface a clear Hebrew unavailable state instead.
   if (!isAmadeusConfigured()) {
     return {
       flights: [],
       mode: "unavailable",
-      warning: "טיסות לא זמינות כרגע",
+      warning: flightsUnavailableMessage,
     };
   }
 
@@ -259,7 +247,7 @@ async function searchFlightsWithMode(params: SearchParams): Promise<{
       return {
         flights: [],
         mode: "unavailable",
-        warning: "טיסות לא זמינות כרגע",
+        warning: flightsUnavailableMessage,
       };
     }
 
@@ -271,7 +259,7 @@ async function searchFlightsWithMode(params: SearchParams): Promise<{
       warning:
         error instanceof Error
           ? `Amadeus search failed: ${error.message}.`
-          : "טיסות לא זמינות כרגע",
+          : flightsUnavailableMessage,
     };
   }
 }
@@ -285,20 +273,12 @@ async function searchHotelsWithMode(params: SearchParams): Promise<{
   mode: ProviderMode;
   warning?: string;
 }> {
-  if (isMockMode()) {
-    logMockMode("Hotel search is using development mock data because mock mode is enabled.");
-    return {
-      hotels: getMockHotels(params),
-      mode: "mock",
-      warning: "מצב פיתוח פעיל. מחירי המלונות אינם נתוני ספק מאומתים.",
-    };
-  }
-
+  // Real hotels come only from the Amadeus hotel provider. No mock fallback.
   if (!isAmadeusConfigured()) {
     return {
       hotels: [],
       mode: "unavailable",
-      warning: "מלונות לא זמינים כרגע",
+      warning: hotelsUnavailableMessage,
     };
   }
 
@@ -309,7 +289,7 @@ async function searchHotelsWithMode(params: SearchParams): Promise<{
       return {
         hotels: [],
         mode: "unavailable",
-        warning: "מלונות לא זמינים כרגע",
+        warning: hotelsUnavailableMessage,
       };
     }
 
@@ -321,7 +301,7 @@ async function searchHotelsWithMode(params: SearchParams): Promise<{
       warning:
         error instanceof Error
           ? `Amadeus hotel search failed: ${error.message}.`
-          : "מלונות לא זמינים כרגע",
+          : hotelsUnavailableMessage,
     };
   }
 }
@@ -504,6 +484,13 @@ function normalizeFlightOffer(
     return null;
   }
 
+  // Only surface offers that carry a real, positive price. Anything else is
+  // dropped rather than shown with a fabricated/zero/NaN price.
+  const price = Number(offer.price?.total);
+  if (!Number.isFinite(price) || price <= 0) {
+    return null;
+  }
+
   return {
     id: `amadeus-${offer.id}`,
     airline:
@@ -515,56 +502,16 @@ function normalizeFlightOffer(
       lastSegment.arrival.iataCode || normalizeLocationCode(params.destination),
     departureTime: formatFlightTime(firstSegment.departure.at),
     arrivalTime: formatFlightTime(lastSegment.arrival.at),
-    price: Number(offer.price?.total || 0),
+    price,
     currency: offer.price?.currency || "USD",
     provider: "Amadeus",
-    availabilityStatus: Number(offer.price?.total || 0) > 0 ? "available" : "unknown",
+    availabilityStatus: "available",
     lastChecked: new Date().toISOString(),
     bookingLink: undefined,
-    priceLabel: Number(offer.price?.total || 0) > 0 ? "מחיר בזמן אמת" : "לא זמין כרגע",
+    priceLabel: "מחיר בזמן אמת",
     duration: formatIsoDuration(firstItinerary?.duration || ""),
     nonstop: segments.length === 1,
   };
-}
-
-function getMockFlights(params: SearchParams) {
-  const destination = params.destination.trim() || "Paris";
-
-  return data.flights
-    .map((flight, index) => ({
-      ...flight,
-      from: params.from || flight.from,
-      destination,
-      price: Math.max(
-        79,
-        (flight.price ?? 0) + index * 17 - Math.min(params.budget, 500) / 20,
-      ),
-      currency: "USD",
-      provider: "Development mock",
-      availabilityStatus: "unknown" as const,
-      lastChecked: new Date().toISOString(),
-      bookingLink: undefined,
-      priceLabel: "לא זמין כרגע" as const,
-    }))
-    .sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
-}
-
-function getMockHotels(params: SearchParams) {
-  return data.hotels
-    .map((hotel, index) => ({
-      ...hotel,
-      location: `${params.destination || "Central"} · ${hotel.location}`,
-      distanceFromCenter: `${(0.4 + index * 0.7).toFixed(1)} km from center`,
-      suitability: getHotelSuitability(index),
-      pricePerNight: Math.max(65, (hotel.pricePerNight ?? 0) + index * 11),
-      currency: "USD",
-      provider: "Development mock",
-      availabilityStatus: "unknown" as const,
-      lastChecked: new Date().toISOString(),
-      bookingLink: undefined,
-      priceLabel: "לא זמין כרגע" as const,
-    }))
-    .sort((a, b) => (a.pricePerNight ?? Number.MAX_SAFE_INTEGER) - (b.pricePerNight ?? Number.MAX_SAFE_INTEGER));
 }
 
 function normalizeHotelOffer(

@@ -1,7 +1,12 @@
-export function getMapUrl(query: string, placeId?: string) {
-  // TODO: Use a real Maps embed/navigation flow when booking pages are added.
-  const encodedQuery = encodeURIComponent(query);
-  const placePart = placeId ? `&query_place_id=${encodeURIComponent(placeId)}` : "";
+export function getMapUrl(destination: string, placeId?: string) {
+  const params = new URLSearchParams({
+    api: "1",
+    query: destination,
+  });
 
-  return `https://www.google.com/maps/search/?api=1&query=${encodedQuery}${placePart}`;
+  if (placeId) {
+    params.set("query_place_id", placeId);
+  }
+
+  return `https://www.google.com/maps/search/?${params.toString()}`;
 }

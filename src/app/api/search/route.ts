@@ -85,7 +85,7 @@ const travelSearchSchema = z.object({
   departureDate: z.string().min(1, "departureDate is required."),
   returnDate: z.string().optional(),
   adults: z.number().int().min(1, "adults must be at least 1."),
-  budget: z.number().min(0, "budget must be a positive number."),
+  budget: z.number().finite("budget must be a finite number.").min(0, "budget must be a positive number."),
   accessibilityProfile: z
     .enum(["none", "wheelchair", "walker", "mobility-scooter", "senior", "young-children"])
     .optional(),
@@ -96,14 +96,22 @@ const travelSearchSchema = z.object({
   nearbyAirports: z.boolean().optional(),
 });
 
+function toFinite(value: string | null, fallback: number, min = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(min, parsed);
+}
+
 function parseSearchParams(params: URLSearchParams): TravelSearchRequest {
   return {
     origin: params.get("origin") || params.get("from") || "",
     destination: params.get("destination") || "",
     departureDate: params.get("departureDate") || "",
     returnDate: params.get("returnDate") || "",
-    adults: Number(params.get("adults") || params.get("travelers") || 1),
-    budget: Number(params.get("budget") || 0),
+    adults: toFinite(params.get("adults") || params.get("travelers"), 1, 1),
+    budget: toFinite(params.get("budget"), 0, 0),
     accessibilityProfile:
       (params.get("accessibilityProfile") as TravelSearchRequest["accessibilityProfile"]) ||
       undefined,

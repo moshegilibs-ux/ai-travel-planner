@@ -4,11 +4,8 @@ import { fetchWithRetry } from "@/lib/external-api";
 import {
   getAmadeusBaseUrl,
   getAmadeusCredentials,
-  isMockMode,
-  logMockMode,
 } from "@/lib/env";
 import type { FlightDeal, FlightSearchInput } from "@/services/api/flights";
-import { generateMockFlights } from "@/lib/mock-flights";
 
 const searchSchema = z.object({
   origin: z.string().min(1),
@@ -253,14 +250,6 @@ async function searchAmadeusFlights(input: FlightSearchInput) {
     .sort((a, b) => a.estimatedPrice - b.estimatedPrice);
 }
 
-function mockResponse(input: FlightSearchInput, warning?: string) {
-  return NextResponse.json({
-    flights: generateMockFlights(input),
-    source: warning ? "fallback" : "mock",
-    warning,
-  });
-}
-
 export async function POST(request: Request) {
   const validation = searchSchema.safeParse(await request.json().catch(() => null));
 
@@ -276,11 +265,6 @@ export async function POST(request: Request) {
   }
 
   const input = validation.data;
-
-  if (isMockMode()) {
-    logMockMode("Flights API route returned mock data because mock mode is enabled.");
-    return mockResponse(input);
-  }
 
   try {
     const flights = await searchAmadeusFlights(input);

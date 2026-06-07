@@ -30,14 +30,20 @@ const selectClass =
 export function FlightsSection({
   selectedFlight,
   onSelectFlight,
+  destination: destinationProp,
+  departureDate: departureDateProp,
+  returnDate: returnDateProp,
 }: {
   selectedFlight: FlightDeal | null;
   onSelectFlight: (flight: FlightDeal) => void;
+  destination?: string;
+  departureDate?: string;
+  returnDate?: string;
 }) {
   const [origin, setOrigin] = useState("TLV");
-  const [destination, setDestination] = useState("ATH");
-  const [departureDate, setDepartureDate] = useState("");
-  const [returnDate, setReturnDate] = useState("");
+  const [destination, setDestination] = useState(destinationProp || "ATH");
+  const [departureDate, setDepartureDate] = useState(departureDateProp || "");
+  const [returnDate, setReturnDate] = useState(returnDateProp || "");
   const [adults, setAdults] = useState(2);
   const [searchedOrigin, setSearchedOrigin] = useState("TLV");
   const [searchedDestination, setSearchedDestination] = useState("ATH");
@@ -58,6 +64,14 @@ export function FlightsSection({
     maxStops: "any",
     timeOfDay: "all",
   });
+
+  // Prefill the search inputs from the planner (destination + dates). Updates
+  // the visible fields only; the user still presses "search" to run a query.
+  useEffect(() => {
+    if (destinationProp) setDestination(destinationProp);
+    if (departureDateProp) setDepartureDate(departureDateProp);
+    if (returnDateProp) setReturnDate(returnDateProp);
+  }, [destinationProp, departureDateProp, returnDateProp]);
 
   useEffect(() => {
     let isActive = true;
@@ -131,8 +145,9 @@ export function FlightsSection({
             בחרו טיסה שמתאימה למסלול
           </h3>
           <p className="mt-2 leading-7 text-slate-600">
-            חיפוש טיסות עובד דרך שכבת API מאובטחת. אם Amadeus לא מוגדר או לא
-            מחזיר תוצאות, מוצגות טיסות mock כדי שהמסלול ימשיך לעבוד.
+            חיפוש טיסות עובד דרך שכבת API מאובטחת מול Amadeus. כל עוד מפתחות
+            Amadeus לא הוגדרו, טיסות אמיתיות אינן זמינות ויוצג מצב ״לא זמין״ —
+            בלי מחירים מדומים.
           </p>
         </div>
 

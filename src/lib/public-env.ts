@@ -1,17 +1,9 @@
-export function isPublicProduction() {
-  return process.env.NODE_ENV === "production";
-}
-
 export function isPublicMockMode() {
-  const value = process.env.NEXT_PUBLIC_USE_MOCK_DATA;
-
-  if (value === undefined || value === "") {
-    return !isPublicProduction();
-  }
-
-  return value !== "false";
+  return process.env.NEXT_PUBLIC_USE_MOCK_DATA !== "false";
 }
 
-export function logPublicMockMode(reason: string) {
-  console.warn(`[env] Mock data active: ${reason}`);
+export function logPublicMockMode(message: string) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info(message);
+  }
 }
