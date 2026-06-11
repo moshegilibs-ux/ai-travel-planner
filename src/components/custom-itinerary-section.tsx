@@ -36,6 +36,16 @@ import {
 import { FlightsSection } from "@/components/flights-section";
 import { HotelsSection } from "@/components/hotels-section";
 import type { HotelDeal } from "@/types/travel-marketplace";
+import { AccessibilityConfidence } from "@/components/accessibility-confidence";
+import {
+  calculateAccessibilityScore,
+  type ProfileType,
+} from "@/lib/accessibility-score";
+import {
+  deriveScoreProfileTypes,
+  loadAccessibilityProfile,
+  type AccessibilityOnboardingProfile,
+} from "@/lib/accessibility-profile";
 import { generateItinerary } from "@/services/api/itinerary";
 import { getPlaces, replacePlace } from "@/services/api/places";
 import type { FlightDeal } from "@/services/api/flights";
@@ -211,6 +221,30 @@ export function CustomItinerarySection() {
   const [expandedPlaceId, setExpandedPlaceId] = useState<string | null>(null);
   const [selectedFlight, setSelectedFlight] = useState<FlightDeal | null>(null);
   const [selectedHotel, setSelectedHotel] = useState<HotelDeal | null>(null);
+  // Saved onboarding profile, loaded after mount (localStorage) to keep the
+  // accessibility confidence panel SSR-stable / hydration-safe.
+  const [savedA11yProfile, setSavedA11yProfile] =
+    useState<AccessibilityOnboardingProfile | null>(null);
+  useEffect(() => {
+    setSavedA11yProfile(loadAccessibilityProfile());
+  }, []);
+  // Accessibility confidence: derive the traveler's profile types (from the
+  // saved onboarding profile + the planner's accessibility toggles) and score
+  // against the available verified facts. With no provider connected yet the
+  // facts are empty, so the panel honestly shows the unverified state.
+  const accessibilityScoreTypes = (() => {
+    const set = new Set<ProfileType>();
+    if (savedA11yProfile) {
+      for (const t of deriveScoreProfileTypes(savedA11yProfile)) set.add(t);
+    }
+    if (accessibility.wheelchairUser) set.add("wheelchair");
+    if (accessibility.limitedWalking) set.add("walker");
+    if (accessibility.relaxedPace) set.add("elderly");
+    return Array.from(set);
+  })();
+  const accessibilityResult = accessibilityScoreTypes.length
+    ? calculateAccessibilityScore({ types: accessibilityScoreTypes }, [])
+    : null;
   const [selectedRouteOptionId, setSelectedRouteOptionId] = useState("classic");
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -746,6 +780,12 @@ export function CustomItinerarySection() {
                 {ui.estimateOnly}
               </span>
             </p>
+          </div>
+        ) : null}
+
+        {accessibilityResult ? (
+          <div className="mt-6">
+            <AccessibilityConfidence result={accessibilityResult} locale={locale} />
           </div>
         ) : null}
 

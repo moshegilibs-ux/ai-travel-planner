@@ -11,6 +11,7 @@
 
 import type { AccessibilityProfile } from "@/types/travel-marketplace";
 import type { DietaryPreference, MobilityLevel } from "@/lib/travel-options";
+import type { ProfileType } from "@/lib/accessibility-score";
 
 export const A11Y_PROFILE_STORAGE_KEY = "trippilot:a11y-profile";
 
@@ -195,4 +196,43 @@ export function deriveMobilityLevel(
   if (usesWheelchair(profile.mobilityDevice)) return "wheelchair";
   if (profile.mobilityDevice === "walker") return "limited_walking";
   return "full";
+}
+
+/**
+ * Bridge the onboarding profile to the accessibility-score engine's profile
+ * types, so the confidence score can be computed without any external provider.
+ *   manual / handbike → wheelchair · powered → scooter · walker → walker.
+ * Reduced-mobility signals (frequent rests, very short distance, or stairs/
+ * restroom needs without a device) add an elderly-style profile.
+ */
+export function deriveScoreProfileTypes(
+  profile: AccessibilityOnboardingProfile,
+): ProfileType[] {
+  const types = new Set<ProfileType>();
+
+  switch (profile.mobilityDevice) {
+    case "manual":
+    case "handbike":
+      types.add("wheelchair");
+      break;
+    case "powered":
+      types.add("scooter");
+      break;
+    case "walker":
+      types.add("walker");
+      break;
+    case "none":
+      break;
+  }
+
+  if (
+    profile.frequentRestBreaks ||
+    profile.maxWalkingMinutes <= 30 ||
+    (profile.mobilityDevice === "none" &&
+      (profile.avoidStairs || profile.accessibleRestroomRequired))
+  ) {
+    types.add("elderly");
+  }
+
+  return Array.from(types);
 }
