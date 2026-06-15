@@ -147,6 +147,7 @@ export const uiTranslations = {
       accessibilityNeeds: "צרכי נגישות",
       accessibilityOptions: {
         wheelchairUser: "משתמש בכיסא גלגלים",
+        walkerUser: "משתמש בהליכון",
         limitedWalking: "הליכה מוגבלת",
         stepFreeHotels: "מלונות ללא מדרגות",
         accessibleTransport: "תחבורה נגישה",
@@ -191,6 +192,7 @@ export const uiTranslations = {
       a11yOf: "מתוך",
       a11yUnverifiedWarning: "נגישות לא מאומתת — מומלץ לבדוק מול המקום",
       a11yNoData: "אין עדיין נתוני נגישות מאומתים — הציון יתעדכן כשיתחבר מקור נתונים מאומת.",
+      tripStyleLabel: "סגנון הטיול",
       transportBetween: "תחבורה בין יעדים",
       budgetBreakdown: "פירוט תקציב",
       internationalFlights: "טיסות בינלאומיות",
@@ -349,6 +351,7 @@ export const uiTranslations = {
       accessibilityNeeds: "Accessibility needs",
       accessibilityOptions: {
         wheelchairUser: "Wheelchair user",
+        walkerUser: "Walker / rollator user",
         limitedWalking: "Limited walking",
         stepFreeHotels: "Step-free hotels",
         accessibleTransport: "Accessible transport",
@@ -393,6 +396,7 @@ export const uiTranslations = {
       a11yOf: "of",
       a11yUnverifiedWarning: "Accessibility not verified — we recommend checking with the venue.",
       a11yNoData: "No verified accessibility data yet — the score updates once a verified data source is connected.",
+      tripStyleLabel: "Trip style",
       transportBetween: "Transportation between destinations",
       budgetBreakdown: "Budget breakdown",
       internationalFlights: "International flights",

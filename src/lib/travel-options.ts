@@ -42,6 +42,7 @@ export const cyclingTypeOptions = [
   { value: "road", label: "כביש" },
   { value: "mtb", label: "שטח / MTB" },
   { value: "family", label: "משפחתי" },
+  { value: "handcycle", label: "אופני יד / אופניים מותאמים" },
 ] as const;
 
 export const travelStyleOptions = [

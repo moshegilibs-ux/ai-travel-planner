@@ -75,6 +75,8 @@ const tripTypes: TripType[] = [
   "שופינג",
   "טבע והרפתקאות",
   "תקציב נמוך",
+  "אופני יד / אופניים מותאמים",
+  "טיול קרוואנים נגיש למשפחות",
 ];
 
 const fieldClass =
@@ -93,6 +95,7 @@ const replacementOptions: Array<[ReplacementPreference, string]> = [
 
 type AccessibilitySelections = {
   wheelchairUser: boolean;
+  walkerUser: boolean;
   limitedWalking: boolean;
   stepFreeHotels: boolean;
   accessibleTransport: boolean;
@@ -123,7 +126,7 @@ function dayPlanningGuidance(a: AccessibilitySelections, isHebrew: boolean) {
         : "Local public transport for short hops, a taxi for longer legs.",
     );
   }
-  if (a.limitedWalking) {
+  if (a.limitedWalking || a.walkerUser) {
     transportation.push(
       isHebrew
         ? "תכננו ירידה/איסוף קרוב ככל האפשר לכל אטרקציה."
@@ -152,13 +155,21 @@ function dayPlanningGuidance(a: AccessibilitySelections, isHebrew: boolean) {
         : "Keep walking distances short and favor compact areas.",
     );
   }
+  if (a.walkerUser) {
+    notes.push(
+      isHebrew
+        ? "העדיפו משטחים ישרים ויציבים, הימנעו מאבני ריצוף וגרמי מדרגות, וודאו מקומות ישיבה לאורך המסלול עבור הליכון."
+        : "Favor flat, stable surfaces, avoid cobblestones and stairs, and ensure seating along the route for a walker.",
+    );
+  }
   notes.push(
     isHebrew
       ? "נגישות לא מאומתת — מומלץ לבדוק מול המקום."
       : "Accessibility not verified — we recommend checking with the venue.",
   );
 
-  const higherSupport = a.relaxedPace || a.limitedWalking || a.wheelchairUser;
+  const higherSupport =
+    a.relaxedPace || a.limitedWalking || a.wheelchairUser || a.walkerUser;
   if (higherSupport) {
     restBreaks.push(
       isHebrew
@@ -199,6 +210,7 @@ export function CustomItinerarySection() {
   ]);
   const [accessibility, setAccessibility] = useState({
     wheelchairUser: false,
+    walkerUser: false,
     limitedWalking: false,
     stepFreeHotels: false,
     accessibleTransport: false,
@@ -238,6 +250,7 @@ export function CustomItinerarySection() {
       for (const t of deriveScoreProfileTypes(savedA11yProfile)) set.add(t);
     }
     if (accessibility.wheelchairUser) set.add("wheelchair");
+    if (accessibility.walkerUser) set.add("walker");
     if (accessibility.limitedWalking) set.add("walker");
     if (accessibility.relaxedPace) set.add("elderly");
     return Array.from(set);
@@ -659,6 +672,7 @@ export function CustomItinerarySection() {
             <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
               {[
                 ["wheelchairUser", ui.accessibilityOptions.wheelchairUser],
+                ["walkerUser", ui.accessibilityOptions.walkerUser],
                 ["limitedWalking", ui.accessibilityOptions.limitedWalking],
                 ["stepFreeHotels", ui.accessibilityOptions.stepFreeHotels],
                 ["accessibleTransport", ui.accessibilityOptions.accessibleTransport],
@@ -871,6 +885,9 @@ export function CustomItinerarySection() {
                   <h3 className="font-bold text-emerald-950">
                     המסלול שלך מוכן
                   </h3>
+                  <p className="mt-1 text-sm font-bold text-emerald-800">
+                    {ui.tripStyleLabel}: {tripType}
+                  </p>
                   <p className="mt-1 text-sm text-emerald-900">
                     אפשר לשמור אותו בדפדפן או להוריד כקובץ PDF.
                   </p>

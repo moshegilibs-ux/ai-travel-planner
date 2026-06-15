@@ -10,7 +10,9 @@ export type TripType =
   | "בטן גב"
   | "שופינג"
   | "טבע והרפתקאות"
-  | "תקציב נמוך";
+  | "תקציב נמוך"
+  | "אופני יד / אופניים מותאמים"
+  | "טיול קרוואנים נגיש למשפחות";
 
 export type CustomItineraryInput = {
   destination: string;
@@ -211,7 +213,114 @@ const tripTypePlans: Record<
     restaurants: ["אוכל רחוב מומלץ", "מסעדה מקומית פשוטה", "מאפייה שכונתית"],
     tips: ["קנו כרטיס תחבורה יומי", "שלבו אטרקציות חינמיות עם אחת בתשלום"],
   },
+  "אופני יד / אופניים מותאמים": {
+    mornings: [
+      "מקטע רכיבה קצר ושטוח על שביל אופניים נגיש, עם תחנת מנוחה מתוכננת",
+      "בוקר רכיבה רגוע במסלול מישורי מסומן, קרוב לשירותים נגישים",
+    ],
+    afternoons: [
+      "הפסקת צהריים ליד נקודת שירותים נגישה, ובדיקת ציוד: לחץ אוויר, חיבורי אופני-יד וטעינה ל-e-handbike",
+      "מקטע קצר נוסף בקצב נינוח עם עצירות מנוחה וצילום",
+    ],
+    evenings: [
+      "חזרה רגועה, מקלחת נגישה וארוחת ערב מתגמלת",
+      "מנוחה והכנת הציוד לרכיבה של מחר",
+    ],
+    attractions: ["שביל אופניים נגיש ומישורי", "טיילת רחבה ללא מדרגות", "פארק עם נתיבי רכיבה שטוחים"],
+    restaurants: [
+      "מסעדה עם כניסה ללא מדרגות ושירותים נגישים",
+      "בית קפה נגיש ליד נקודת מנוחה",
+      "מסעדה עם חניית נכים סמוכה",
+    ],
+    tips: [
+      "שמרו על מקטעים קצרים והרבה תחנות מנוחה",
+      "ודאו שירותים נגישים לאורך כל המסלול",
+      "קחו ערכת חלפים ומטען לאופני-יד / e-handbike",
+    ],
+  },
+  "טיול קרוואנים נגיש למשפחות": {
+    mornings: [
+      "בוקר רגוע באתר קרוואנים/RV נגיש עם גישה ללא מדרגות",
+      "ארוחת בוקר משפחתית ליד חניית הקרוואן הנגישה",
+    ],
+    afternoons: [
+      "עצירה ידידותית-משפחה עם חניה נגישה וחדרי רחצה נגישים",
+      "פעילות קצרה בקצב רגוע, בלי נסיעות ארוכות",
+    ],
+    evenings: [
+      "ערב באתר הקרוואנים: חיבורי חשמל/מים, מקלחת נגישה וזמן משפחה",
+      "ארוחת ערב נינוחה ליד הקרוואן",
+    ],
+    attractions: ["אתר קרוואנים/RV נגיש", "פארק משפחתי עם גישה ללא מדרגות", "נקודת תצפית עם חניה נגישה"],
+    restaurants: [
+      "מסעדה משפחתית עם חניה וחדר רחצה נגישים",
+      "מתחם אוכל נגיש ליד אתר הקרוואנים",
+      "פיקניק נגיש בקצב רגוע",
+    ],
+    tips: [
+      "בחרו אתרי קרוואנים עם גישה ללא מדרגות, חדר רחצה נגיש וחניה נגישה",
+      "שמרו על קצב רגוע ועצירות תכופות",
+      "ודאו חיבורי חשמל ומים נגישים מראש",
+    ],
+  },
 };
+
+/**
+ * Deterministic, provider-free accessibility/transport notes injected per day
+ * for the two accessible trip styles, so the daily plan reflects the specifics
+ * (handcycle: flat/short/rest/toilets/equipment; caravan: step-free RV sites,
+ * accessible bathrooms, parking, relaxed pace). Other trip types add nothing.
+ */
+function tripTypeAccessibility(
+  tripType: TripType,
+  isHebrew: boolean,
+): { notes: string[]; transport: string[] } {
+  if (tripType === "אופני יד / אופניים מותאמים") {
+    return {
+      notes: isHebrew
+        ? [
+            "העדיפו מסלול שטוח ומקטעים קצרים עם תחנות מנוחה תכופות",
+            "ודאו שירותים נגישים לאורך המסלול",
+            "בדקו ציוד: חיבורי אופני-יד, ערכת חלפים וטעינה ל-e-handbike",
+          ]
+        : [
+            "Prefer flat routes and short segments with frequent rest stops",
+            "Confirm accessible toilets along the route",
+            "Check equipment: handcycle attachments, a spares kit and e-handbike charging",
+          ],
+      transport: isHebrew
+        ? [
+            "העבירו את אופני-היד ברכב נגיש בין מקטעים ארוכים",
+            "תכננו חניה נגישה בתחילת המסלול ובסופו",
+          ]
+        : [
+            "Move the handcycle by accessible vehicle between long segments",
+            "Plan accessible parking at the route's start and end",
+          ],
+    };
+  }
+  if (tripType === "טיול קרוואנים נגיש למשפחות") {
+    return {
+      notes: isHebrew
+        ? [
+            "בחרו אתר קרוואנים/RV עם גישה ללא מדרגות וחדר רחצה נגיש",
+            "ודאו חניה נגישה וחיבורי חשמל/מים נגישים",
+            "שמרו על קצב רגוע ועצירות ידידותיות-משפחה",
+          ]
+        : [
+            "Choose an RV/campsite with step-free access and an accessible bathroom",
+            "Confirm accessible parking and step-free power/water hookups",
+            "Keep a relaxed pace with family-friendly stops",
+          ],
+      transport: isHebrew
+        ? ["נסיעה בקרוואן בקצב רגוע עם עצירות תכופות לחניה ולשירותים נגישים"]
+        : [
+            "Drive the RV at a relaxed pace with frequent stops for accessible parking and toilets",
+          ],
+    };
+  }
+  return { notes: [], transport: [] };
+}
 
 function pick(items: string[], index: number) {
   return items[index % items.length];
@@ -739,8 +848,14 @@ export function generateMultiDestinationItinerary(input: CustomItineraryInput): 
         isHebrew ? `${secondaryArea} כאזור מומלץ` : `${secondaryArea} recommended area`,
       ],
       museums: routeDay?.museums,
-      transportNotes: routeDay?.transportNotes,
-      dailyAccessibilityNotes: routeDay?.accessibilityNotes,
+      transportNotes: [
+        ...(routeDay?.transportNotes ?? []),
+        ...tripTypeAccessibility(input.tripType, isHebrew).transport,
+      ],
+      dailyAccessibilityNotes: [
+        ...(routeDay?.accessibilityNotes ?? []),
+        ...tripTypeAccessibility(input.tripType, isHebrew).notes,
+      ],
       estimatedDailyCost: routeDay?.estimatedDailyCost,
       restaurant: pick(plan.restaurants, index),
       dailyTip: transfer
