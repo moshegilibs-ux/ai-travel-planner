@@ -2,6 +2,33 @@
 
 ---
 
+## ✅ Checkpoint — 2026-06-18 (caravan/handbike cards + WhatsApp sharing)
+
+- **Branch:** `work/2026-06-07-accessibility-flights-hotels`
+- **Last commit:** `6e19b2c` — feat: add caravan handbike cards and whatsapp sharing
+- **Verified green:** `npm run build` ✅ · `tsc --noEmit` ✅ 0 errors · `npm test` ✅ 35/35.
+- **Completed in this commit:**
+  - 🚐 **Caravan trip cards** — `טיול קרוואנים` is now a visible trip card on the home page (`travel-type-section.tsx` ← `destinations-data.ts`).
+  - 🚴 **Handbike trip cards** — `טיול אופני ידיים` is now a visible trip card on the home page (`travel-type-section.tsx` ← `destinations-data.ts`).
+  - 💬 **WhatsApp sharing** (`https://wa.me/?text=`) — on route cards + trip summary (`custom-itinerary-section.tsx`) and the final itinerary page `/results` (`results-view.tsx`); new reusable `whatsapp-share-button.tsx`.
+
+---
+
+## 🔋 Emergency Checkpoint — 2026-06-15 (low battery)
+
+- **Branch:** `work/2026-06-07-accessibility-flights-hotels`
+- **Last commit:** `7ec9510` — Add session handoff note (battery stop 2026-06-15)
+- **Prev commit:** `ab3eda5` — Add accessible handcycle and caravan trip options
+- **Working tree:** clean as of last commit (this status edit is the only new change).
+- **Verified green today:** `npm run build` ✅ · `tsc --noEmit` ✅ 0 errors · `npm test` ✅ 35/35.
+- **Done:** 🚴 handcycle + 🚐 accessible caravan trip types + 🚶 walker (`walkerUser`) — complete.
+- **Still missing:** Amadeus API keys ❌ · OpenAI key ❌.
+- **OneDrive gotcha:** if build/tsc fails with `TS6053` on `.next/types` or `EINVAL readlink` in `.next`, it's a stale `.next` on OneDrive — `Remove-Item -Recurse -Force .next ; npm run build`. Not a code bug.
+- **Backup:** full copy (incl. `.git`, excl. `node_modules`/`.next`) at `C:\Users\moshe\Desktop\ai-travel-planner-backup-latest`.
+- **Resume from:** `HANDOFF_להמשך.md`. Next options: Amadeus keys / voice+chat MVP (`ACCESSIBLE_VOICE_CHAT_PLAN.md` §9).
+
+---
+
 ## ⏸️ End-of-Day Checkpoint — 2026-06-07
 
 > Checkpoint only. No code changes in this entry. Git is still broken (cannot commit). Dev server may be running on port 3001.
