@@ -4,6 +4,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   BadgeDollarSign,
+  Bike,
+  Caravan,
   Heart,
   Mountain,
   ShoppingBag,
@@ -12,7 +14,7 @@ import {
 } from "lucide-react";
 import { travelTypes } from "@/lib/destinations-data";
 
-const icons = [Heart, Users, Sun, ShoppingBag, Mountain, BadgeDollarSign];
+const icons = [Heart, Users, Sun, ShoppingBag, Mountain, BadgeDollarSign, Caravan, Bike];
 
 export function TravelTypeSection() {
   return (

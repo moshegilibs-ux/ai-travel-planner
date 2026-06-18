@@ -30,6 +30,7 @@ import {
   ItineraryPlace,
   MultiDestinationTripPlan,
   ReplacementPreference,
+  RouteOption,
   TravelerPreferences,
   TripType,
 } from "@/lib/generate-itinerary";
@@ -66,6 +67,7 @@ import {
 } from "@/lib/saved-itineraries";
 import { readMyTrip, writeMyTrip } from "@/lib/my-trip";
 import { VoiceInputButton } from "@/components/voice-input-button";
+import { WhatsAppShareButton } from "@/components/whatsapp-share-button";
 import { getUiTranslations } from "@/lib/ui-translations";
 
 const tripTypes: TripType[] = [
@@ -794,6 +796,22 @@ export function CustomItinerarySection() {
                 {ui.estimateOnly}
               </span>
             </p>
+            <div className="mt-4">
+              <WhatsAppShareButton
+                text={buildTripSummaryShareText({
+                  destination,
+                  days,
+                  tripType,
+                  selectedFlight,
+                  selectedHotel,
+                  combinedEstimate:
+                    (selectedFlight?.estimatedPrice ?? 0) +
+                    (selectedHotel?.pricePerNight ?? 0) * Math.max(1, days - 1),
+                  ui,
+                })}
+                className="w-full sm:w-auto"
+              />
+            </div>
           </div>
         ) : null}
 
@@ -1175,52 +1193,58 @@ function TripPlanOverview({
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {plan.routeOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onSelectRoute(option.id)}
-              className={`rounded-xl border p-4 text-left transition ${
-                selectedRouteId === option.id
-                  ? "border-emerald-400 bg-white shadow-sm"
-                  : "border-slate-200 bg-white/70 hover:border-sky-300"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h5 className="text-lg font-black text-slate-950">{option.name}</h5>
-                  <p className="text-sm font-bold text-slate-500">{option.durationLabel}</p>
+            <div key={option.id} className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => onSelectRoute(option.id)}
+                className={`rounded-xl border p-4 text-left transition ${
+                  selectedRouteId === option.id
+                    ? "border-emerald-400 bg-white shadow-sm"
+                    : "border-slate-200 bg-white/70 hover:border-sky-300"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h5 className="text-lg font-black text-slate-950">{option.name}</h5>
+                    <p className="text-sm font-bold text-slate-500">{option.durationLabel}</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                    {formatTripMoney(option.budget.total, option.budget.currency)}
+                  </span>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
-                  {formatTripMoney(option.budget.total, option.budget.currency)}
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{option.whyThisRouteFits}</p>
-              {option.accessibilitySummary ? (
-                <p className="mt-2 rounded-lg bg-emerald-50 p-2 text-xs font-bold leading-5 text-emerald-900">
-                  {option.accessibilitySummary}
-                </p>
-              ) : null}
-              <div className="mt-3 grid gap-2 text-xs text-slate-600">
-                <RouteOptionLine
-                  label={ui.split}
-                  value={option.destinations
-                    .map((destination) => `${destination.name} ${destination.nights} ${ui.nights}`)
-                    .join(" · ")}
-                />
-                <RouteOptionLine
-                  label={ui.flightEstimate}
-                  value={formatTripMoney(option.budget.internationalFlights, option.budget.currency)}
-                />
-                <RouteOptionLine
-                  label={ui.hotels}
-                  value={formatTripMoney(option.budget.hotels, option.budget.currency)}
-                />
-                <RouteOptionLine
-                  label={ui.internalTransport}
-                  value={formatTripMoney(option.budget.domesticTransportation, option.budget.currency)}
-                />
-              </div>
-            </button>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{option.whyThisRouteFits}</p>
+                {option.accessibilitySummary ? (
+                  <p className="mt-2 rounded-lg bg-emerald-50 p-2 text-xs font-bold leading-5 text-emerald-900">
+                    {option.accessibilitySummary}
+                  </p>
+                ) : null}
+                <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                  <RouteOptionLine
+                    label={ui.split}
+                    value={option.destinations
+                      .map((destination) => `${destination.name} ${destination.nights} ${ui.nights}`)
+                      .join(" · ")}
+                  />
+                  <RouteOptionLine
+                    label={ui.flightEstimate}
+                    value={formatTripMoney(option.budget.internationalFlights, option.budget.currency)}
+                  />
+                  <RouteOptionLine
+                    label={ui.hotels}
+                    value={formatTripMoney(option.budget.hotels, option.budget.currency)}
+                  />
+                  <RouteOptionLine
+                    label={ui.internalTransport}
+                    value={formatTripMoney(option.budget.domesticTransportation, option.budget.currency)}
+                  />
+                </div>
+              </button>
+              <WhatsAppShareButton
+                text={buildRouteShareText(plan, option, ui)}
+                label="שתף מסלול"
+                className="w-full"
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -1348,6 +1372,61 @@ function formatTripMoney(value: number, currency: string) {
     currency,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+type ResultsUi = ReturnType<typeof getUiTranslations>["results"];
+
+// Plain-text summary of a single route option for WhatsApp sharing.
+function buildRouteShareText(
+  plan: MultiDestinationTripPlan,
+  option: RouteOption,
+  ui: ResultsUi,
+) {
+  return [
+    `🧭 ${plan.countryOrRoute} – ${option.name}`,
+    option.durationLabel,
+    option.whyThisRouteFits,
+    `${ui.split}: ${option.destinations
+      .map((destination) => `${destination.name} ${destination.nights} ${ui.nights}`)
+      .join(" · ")}`,
+    `${ui.totalBudget}: ${formatTripMoney(option.budget.total, option.budget.currency)}`,
+    option.accessibilitySummary,
+    "נוצר עם טיולים וחלומות",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// Plain-text summary of the selected flight + hotel trip for WhatsApp sharing.
+function buildTripSummaryShareText({
+  destination,
+  days,
+  tripType,
+  selectedFlight,
+  selectedHotel,
+  combinedEstimate,
+  ui,
+}: {
+  destination: string;
+  days: number;
+  tripType: TripType;
+  selectedFlight: FlightDeal | null;
+  selectedHotel: HotelDeal | null;
+  combinedEstimate: number;
+  ui: ResultsUi;
+}) {
+  return [
+    `🧳 ${ui.tripSummaryTitle}${destination ? ` – ${destination}` : ""}`,
+    `${days} ימים · ${tripType}`,
+    selectedFlight
+      ? `✈️ ${selectedFlight.airline} ${selectedFlight.flightNumber} ($${selectedFlight.estimatedPrice})`
+      : null,
+    selectedHotel ? `🏨 ${selectedHotel.name} · ${selectedHotel.location}` : null,
+    `${ui.combinedEstimate}: ~$${combinedEstimate} (${ui.estimateOnly})`,
+    "נוצר עם טיולים וחלומות",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function PlaceRecommendationCard({

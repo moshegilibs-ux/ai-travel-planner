@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ItineraryResponse, Recommendation, TimelineActivity } from "@/lib/itinerary-types";
 import { TripMap } from "@/components/trip-map";
+import { WhatsAppShareButton } from "@/components/whatsapp-share-button";
 
 const resultStorageKey = "ai-travel-planner:last-itinerary";
 
@@ -241,6 +242,17 @@ export function ResultsView() {
     ...(itinerary.kosherRestaurants ?? []),
     ...(itinerary.chabadHouses ?? []),
   ];
+
+  const shareText = [
+    `🌍 ${itinerary.destination ?? "המסלול שלי"}`,
+    itinerary.summary,
+    `${days.length} ימים`,
+    itinerary.estimatedTotalCost ? `תקציב משוער: ${itinerary.estimatedTotalCost}` : null,
+    itinerary.mobilitySummary,
+    "נוצר עם טיולים וחלומות",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <main className={isLargeText ? "text-lg" : undefined}>
@@ -474,6 +486,12 @@ export function ResultsView() {
           >
             {isLargeText ? "הקטנת טקסט" : "הגדלת טקסט"}
           </button>
+
+          <WhatsAppShareButton
+            text={shareText}
+            label="שתף מסלול בוואטסאפ"
+            className="w-full"
+          />
 
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
