@@ -122,5 +122,6 @@ export async function replacePlace({
     mapUrl: apiPlace.mapUrl || getMapUrl(apiPlace.name, apiPlace.placeId),
     address: apiPlace.address,
     placeId: apiPlace.placeId,
+    accessibility: apiPlace.accessibility,
   };
 }

@@ -1,6 +1,7 @@
 ﻿import { getPlaceImages } from "@/services/api/images";
 import { getMapUrl } from "@/services/api/maps";
 import type { FlightDeal } from "@/services/api/flights";
+import type { PlaceAccessibility } from "@/services/api/places";
 
 import { getUiTranslations } from "@/lib/ui-translations";
 
@@ -68,6 +69,8 @@ export type ItineraryPlace = {
   mapUrl: string;
   address?: string;
   placeId?: string;
+  /** Provider-reported accessibility (Google Places), when a real lookup ran. */
+  accessibility?: PlaceAccessibility;
 };
 
 export type DestinationSegment = {

@@ -49,6 +49,7 @@ import {
 } from "@/lib/accessibility-profile";
 import { generateItinerary } from "@/services/api/itinerary";
 import { getPlaces, replacePlace } from "@/services/api/places";
+import type { PlaceAccessibility } from "@/services/api/places";
 import type { FlightDeal } from "@/services/api/flights";
 import { getCurrentUser, subscribeAuthState } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
@@ -1429,6 +1430,61 @@ function buildTripSummaryShareText({
     .join("\n");
 }
 
+/**
+ * Compact, honest accessibility row for a day stop. Renders ONLY when a real
+ * Google Places lookup attached accessibility data. Positive flags are shown as
+ * "מדווחת" (reported) — never "מאומת"/verified — and any unknown/unsourced field
+ * surfaces the standard unverified notice so we never imply confirmed access.
+ */
+function PlaceAccessibilityBadges({
+  accessibility,
+}: {
+  accessibility?: PlaceAccessibility;
+}) {
+  if (!accessibility) return null;
+
+  const reported: string[] = [];
+  if (accessibility.wheelchairAccessibleEntrance === "available") {
+    reported.push("♿ כניסה נגישה מדווחת");
+  }
+  if (accessibility.wheelchairAccessibleRestroom === "available") {
+    reported.push("♿ שירותים נגישים מדווחים");
+  }
+  if (accessibility.wheelchairAccessibleParking === "available") {
+    reported.push("♿ חניה נגישה מדווחת");
+  }
+  if (accessibility.wheelchairAccessibleSeating === "available") {
+    reported.push("♿ ישיבה נגישה מדווחת");
+  }
+
+  const showUnverified =
+    accessibility.source === null ||
+    [
+      accessibility.wheelchairAccessibleEntrance,
+      accessibility.wheelchairAccessibleRestroom,
+      accessibility.wheelchairAccessibleParking,
+      accessibility.wheelchairAccessibleSeating,
+    ].some((status) => status === "unknown");
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {reported.map((label) => (
+        <span
+          key={label}
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800"
+        >
+          {label}
+        </span>
+      ))}
+      {showUnverified ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">
+          ⚠️ נגישות לא מאומתת — מומלץ לבדוק מול המקום
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function PlaceRecommendationCard({
   place,
   expanded,
@@ -1511,6 +1567,8 @@ function PlaceRecommendationCard({
             </span>
           ))}
         </div>
+
+        <PlaceAccessibilityBadges accessibility={place.accessibility} />
 
         {expanded ? (
           <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm leading-7 text-slate-700">
