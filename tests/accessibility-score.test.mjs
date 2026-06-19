@@ -136,3 +136,112 @@ test("engine module enforces the integrity rules in source", () => {
   assert.match(src, /hotel_claim:\s*0\.4/);
   assert.match(src, /none:\s*0\.0/);
 });
+
+// ---------------------------------------------------------------------------
+// factsFromPlaceAccessibility adapter (Google Places → scoring facts).
+// Google data is REPORTED → "declared"/"api", never "verified". A negative flag
+// → "absent". "unknown" → no fact. Parking/seating are not mapped yet.
+// ---------------------------------------------------------------------------
+
+// Faithful replica of the TS adapter for behavioural tests.
+function factsFromPlaceAccessibility(a) {
+  const facts = [];
+  if (a.wheelchairAccessibleEntrance === "available")
+    facts.push({ requirement: "step_free_access", status: "declared", source: "api" });
+  else if (a.wheelchairAccessibleEntrance === "unavailable")
+    facts.push({ requirement: "step_free_access", status: "absent", source: "api" });
+  if (a.wheelchairAccessibleRestroom === "available")
+    facts.push({ requirement: "accessible_toilet", status: "declared", source: "api" });
+  else if (a.wheelchairAccessibleRestroom === "unavailable")
+    facts.push({ requirement: "accessible_toilet", status: "absent", source: "api" });
+  return facts;
+}
+
+function placeA11y(overrides = {}) {
+  return {
+    wheelchairAccessibleEntrance: "unknown",
+    wheelchairAccessibleRestroom: "unknown",
+    wheelchairAccessibleParking: "unknown",
+    wheelchairAccessibleSeating: "unknown",
+    source: "google_places",
+    lastChecked: "2026-06-19T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+test("adapter: available entrance/restroom → declared facts from api source", () => {
+  const facts = factsFromPlaceAccessibility(
+    placeA11y({
+      wheelchairAccessibleEntrance: "available",
+      wheelchairAccessibleRestroom: "available",
+    }),
+  );
+  assert.deepEqual(facts, [
+    { requirement: "step_free_access", status: "declared", source: "api" },
+    { requirement: "accessible_toilet", status: "declared", source: "api" },
+  ]);
+  // Google data is reported, never verified.
+  assert.ok(facts.every((f) => f.status !== "verified"));
+  assert.ok(facts.every((f) => f.source === "api"));
+});
+
+test("adapter: unavailable entrance/restroom → absent facts from api source", () => {
+  const facts = factsFromPlaceAccessibility(
+    placeA11y({
+      wheelchairAccessibleEntrance: "unavailable",
+      wheelchairAccessibleRestroom: "unavailable",
+    }),
+  );
+  assert.deepEqual(facts, [
+    { requirement: "step_free_access", status: "absent", source: "api" },
+    { requirement: "accessible_toilet", status: "absent", source: "api" },
+  ]);
+});
+
+test("adapter: unknown fields create no facts (no positive signal from missing data)", () => {
+  assert.deepEqual(factsFromPlaceAccessibility(placeA11y()), []);
+});
+
+test("adapter: parking and seating are ignored for the score", () => {
+  const facts = factsFromPlaceAccessibility(
+    placeA11y({
+      wheelchairAccessibleParking: "available",
+      wheelchairAccessibleSeating: "available",
+    }),
+  );
+  assert.deepEqual(facts, []);
+});
+
+test("adapter: a declared api fact is discounted vs a verified human source", () => {
+  const facts = factsFromPlaceAccessibility(
+    placeA11y({ wheelchairAccessibleEntrance: "available" }),
+  );
+  const r = score({ step_free_access: 10 }, facts);
+  // single requirement, declared + api → 1 * 0.6 * 100 = 60 (not 100).
+  assert.equal(r.score, 60);
+});
+
+test("engine source maps Google Places fields to declared/absent api facts, never verified", () => {
+  const src = read("src/lib/accessibility-score.ts");
+  assert.match(src, /export function factsFromPlaceAccessibility/);
+  assert.match(src, /wheelchairAccessibleEntrance === "available"/);
+  assert.match(
+    src,
+    /requirement: "step_free_access", status: "declared", source: "api"/,
+  );
+  assert.match(
+    src,
+    /requirement: "step_free_access", status: "absent", source: "api"/,
+  );
+  assert.match(
+    src,
+    /requirement: "accessible_toilet", status: "declared", source: "api"/,
+  );
+  assert.match(
+    src,
+    /requirement: "accessible_toilet", status: "absent", source: "api"/,
+  );
+  // The adapter maps positives to "declared" (the assertions above fail if that
+  // ever becomes "verified"). parking/seating are not mapped to a requirement.
+  assert.doesNotMatch(src, /wheelchairAccessibleParking[\s\S]*?requirement:/);
+});

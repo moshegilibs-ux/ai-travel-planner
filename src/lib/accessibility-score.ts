@@ -16,6 +16,8 @@
  * ---------------------------------------------------------------------------
  */
 
+import type { PlaceAccessibility } from "@/services/api/places";
+
 /* ===========================================================================
  * 1. טיפוסי יסוד
  * ======================================================================== */
@@ -373,4 +375,37 @@ export function exampleAgaeonHotel(): AccessibilityScoreResult {
   ];
 
   return calculateAccessibilityScore(profile, facts);
+}
+
+/* ===========================================================================
+ * 10. אדפטר: נתוני נגישות מ-Google Places → עובדות לחישוב הציון
+ * ---------------------------------------------------------------------------
+ * נתוני Google Places הם "מדווחים" (reported), לא מאומתים. לכן דגל חיובי
+ * ממופה ל-status "declared" עם source "api" (אמינות 0.6) — לעולם לא "verified".
+ * דגל שלילי ("unavailable") הופך לעובדת "absent". "unknown" אינו יוצר עובדה
+ * כלל, כך שהיעדר מידע לעולם אינו מייצר אות חיובי (או כל אות שהוא).
+ * חניה (parking) וישיבה (seating) אינן ממופות לדרישה כרגע ומושמטות מהחישוב.
+ * ======================================================================== */
+
+export function factsFromPlaceAccessibility(
+  accessibility: PlaceAccessibility,
+): AccessibilityFact[] {
+  const facts: AccessibilityFact[] = [];
+
+  if (accessibility.wheelchairAccessibleEntrance === "available") {
+    facts.push({ requirement: "step_free_access", status: "declared", source: "api" });
+  } else if (accessibility.wheelchairAccessibleEntrance === "unavailable") {
+    facts.push({ requirement: "step_free_access", status: "absent", source: "api" });
+  }
+
+  if (accessibility.wheelchairAccessibleRestroom === "available") {
+    facts.push({ requirement: "accessible_toilet", status: "declared", source: "api" });
+  } else if (accessibility.wheelchairAccessibleRestroom === "unavailable") {
+    facts.push({ requirement: "accessible_toilet", status: "absent", source: "api" });
+  }
+
+  // wheelchairAccessibleParking / wheelchairAccessibleSeating: no RequirementId
+  // mapping yet — intentionally ignored for the score.
+
+  return facts;
 }
