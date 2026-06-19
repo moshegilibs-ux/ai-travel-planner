@@ -6,7 +6,11 @@ import {
   logMockMode,
   validateProductionRuntimeEnv,
 } from "@/lib/env";
-import type { ApiPlaceResult } from "@/services/api/places";
+import type {
+  ApiPlaceResult,
+  PlaceAccessibility,
+  PlaceAccessibilityStatus,
+} from "@/services/api/places";
 import { getMapUrl } from "@/services/api/maps";
 
 const searchSchema = z.object({
@@ -26,7 +30,56 @@ type GooglePlace = {
   regularOpeningHours?: { weekdayDescriptions?: string[]; openNow?: boolean };
   types?: string[];
   photos?: Array<{ name?: string }>;
+  accessibilityOptions?: {
+    wheelchairAccessibleEntrance?: boolean;
+    wheelchairAccessibleParking?: boolean;
+    wheelchairAccessibleRestroom?: boolean;
+    wheelchairAccessibleSeating?: boolean;
+  };
 };
+
+/** Map a Google boolean flag to our tri-state. Absent stays "unknown". */
+function accessibilityStatus(value?: boolean): PlaceAccessibilityStatus {
+  if (value === true) return "available";
+  if (value === false) return "unavailable";
+  return "unknown";
+}
+
+/**
+ * Translate Google's `accessibilityOptions` into our provider-reported shape.
+ * Only stamps a source/timestamp when Google actually reported at least one
+ * flag — when nothing is reported, every field stays "unknown" with no source,
+ * so we never imply accessibility we don't have.
+ */
+function mapAccessibility(
+  options: GooglePlace["accessibilityOptions"],
+): PlaceAccessibility {
+  const hasAnyReported =
+    !!options &&
+    [
+      options.wheelchairAccessibleEntrance,
+      options.wheelchairAccessibleParking,
+      options.wheelchairAccessibleRestroom,
+      options.wheelchairAccessibleSeating,
+    ].some((value) => typeof value === "boolean");
+
+  return {
+    wheelchairAccessibleEntrance: accessibilityStatus(
+      options?.wheelchairAccessibleEntrance,
+    ),
+    wheelchairAccessibleParking: accessibilityStatus(
+      options?.wheelchairAccessibleParking,
+    ),
+    wheelchairAccessibleRestroom: accessibilityStatus(
+      options?.wheelchairAccessibleRestroom,
+    ),
+    wheelchairAccessibleSeating: accessibilityStatus(
+      options?.wheelchairAccessibleSeating,
+    ),
+    source: hasAnyReported ? "google_places" : null,
+    lastChecked: hasAnyReported ? new Date().toISOString() : null,
+  };
+}
 
 function buildSearchText(payload: z.infer<typeof searchSchema>) {
   const preferenceText = payload.replacementPreference
@@ -73,6 +126,7 @@ function normalizePlace(place: GooglePlace, category: string): ApiPlaceResult {
     category: category as ApiPlaceResult["category"],
     photoNames: place.photos?.map((photo) => photo.name || "").filter(Boolean),
     mapUrl: getMapUrl(name, place.id),
+    accessibility: mapAccessibility(place.accessibilityOptions),
   };
 }
 
@@ -99,7 +153,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.rating,places.priceLevel,places.regularOpeningHours,places.types,places.photos",
+          "places.id,places.displayName,places.formattedAddress,places.rating,places.priceLevel,places.regularOpeningHours,places.types,places.photos,places.accessibilityOptions",
       },
       body: JSON.stringify({
         textQuery: buildSearchText(payload),

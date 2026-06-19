@@ -17,6 +17,30 @@ export type PlaceSearchInput = {
   replacementPreference?: ReplacementPreference;
 };
 
+/**
+ * Tri-state for a single Google Places accessibility flag.
+ * "unknown" means Google did not report the flag — we never infer accessibility,
+ * so a missing value stays unknown rather than being treated as accessible.
+ */
+export type PlaceAccessibilityStatus = "available" | "unavailable" | "unknown";
+
+/**
+ * Wheelchair accessibility as reported by Google Places
+ * (`places.accessibilityOptions`). This is provider-reported data, not an
+ * independently verified audit — `source`/`lastChecked` record its provenance
+ * so downstream consumers can present it honestly (no fabricated "accessible").
+ */
+export type PlaceAccessibility = {
+  wheelchairAccessibleEntrance: PlaceAccessibilityStatus;
+  wheelchairAccessibleParking: PlaceAccessibilityStatus;
+  wheelchairAccessibleRestroom: PlaceAccessibilityStatus;
+  wheelchairAccessibleSeating: PlaceAccessibilityStatus;
+  /** Provider that supplied the data, or null when no flag was reported. */
+  source: "google_places" | null;
+  /** ISO timestamp when fetched, or null when nothing was reported. */
+  lastChecked: string | null;
+};
+
 export type ApiPlaceResult = {
   placeId?: string;
   name: string;
@@ -28,6 +52,7 @@ export type ApiPlaceResult = {
   category: RecommendationCategory;
   photoNames?: string[];
   mapUrl?: string;
+  accessibility?: PlaceAccessibility;
 };
 
 export function getPlaces(dayPlaces: ItineraryPlace[] = []) {
