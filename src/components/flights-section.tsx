@@ -386,7 +386,7 @@ export function FlightsSection({
                       {flight.isDirect ? "ישירה" : `${flight.stops} עצירות`}
                     </p>
                   </div>
-                  <div className="sm:text-left">
+                  <div className="sm:text-end">
                     <p className="text-2xl font-black text-slate-950">
                       {flight.arrivalTime}
                     </p>

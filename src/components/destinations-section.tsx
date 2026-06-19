@@ -39,7 +39,7 @@ export function DestinationsSection() {
               <button
                 type="button"
                 onClick={() => setSelectedDestination(destination)}
-                className="block w-full text-right"
+                className="block w-full text-start"
               >
                 <div className="relative h-48 overflow-hidden">
                   <Image
@@ -50,7 +50,7 @@ export function DestinationsSection() {
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent" />
-                  <h3 className="absolute bottom-4 right-4 text-2xl font-bold text-white">
+                  <h3 className="absolute bottom-4 start-4 text-2xl font-bold text-white">
                     {destination.name}
                   </h3>
                 </div>

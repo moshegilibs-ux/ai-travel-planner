@@ -156,7 +156,7 @@ export function FlightCard({
           <Plane className="mx-auto h-5 w-5" />
           <p className="mt-1 text-xs">{flight.nonstop ? t("direct") : t("stops")}</p>
         </div>
-        <div className="text-left">
+        <div className="text-end">
           <p className="text-2xl font-bold text-slate-950 dark:text-white">
             {flight.arrivalTime}
           </p>
@@ -599,7 +599,7 @@ export function TripDealCard({
           </div>
         )}
         {bestValue ? (
-          <span className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-sm font-bold text-white shadow-lg">
+          <span className="absolute start-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500 px-3 py-2 text-sm font-bold text-white shadow-lg">
             <Sparkles className="h-4 w-4" />
             {t("bestValue")}
           </span>
