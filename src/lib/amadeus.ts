@@ -546,7 +546,10 @@ function normalizeHotelOffer(
     bookingLink: undefined,
     priceLabel: "מחיר בזמן אמת",
     amenities: getHotelAmenities(index, safeStars),
-    suitability: getHotelSuitability(index),
+    // Accessibility/suitability is intentionally omitted: Amadeus offers carry no
+    // verified accessibility data, so we must not fabricate "Wheelchair Accessible"
+    // / "Elevator" / "Accessible rooms" labels by array index. Unknown accessibility
+    // stays unknown (undefined) rather than being shown as accessible.
   };
 }
 
@@ -564,16 +567,6 @@ function getHotelAmenities(index: number, stars: number) {
   ];
 }
 
-function getHotelSuitability(index: number) {
-  const options = [
-    ["Wheelchair Accessible", "Elder Friendly", "Kids Friendly"],
-    ["Elder Friendly", "Central location", "Short walking distances"],
-    ["Kids Friendly", "Family rooms", "Kitchenette"],
-    ["Wheelchair Accessible", "Elevator", "Accessible rooms"],
-  ];
-
-  return options[index % options.length] ?? options[0];
-}
 
 function buildTripDeals({
   flights,
